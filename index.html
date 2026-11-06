@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Simulator EDFAT</title>
+<meta name="description" content="Latihan teori EDFAT (Entire, Detail, Frame, Angle, Time) pakai foto asli dan jendela kamera virtual.">
+<meta name="theme-color" content="#11B3B1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<header class="top">
+  <button class="brand" data-go="home" aria-label="Beranda">
+    <span class="brand-mark">E·D·F·A·T</span>
+    <span class="brand-name">Simulator</span>
+  </button>
+  <nav class="steps" id="steps" aria-label="Langkah"></nav>
+</header>
+
+<!-- BERANDA -->
+<main id="home" class="view">
+  <section class="hero">
+    <div class="hero-text">
+      <p class="eyebrow">Latihan fotografi cerita</p>
+      <h1>Satu peristiwa,<br>lima foto yang bercerita.</h1>
+      <p class="lead">EDFAT adalah cara memotret satu peristiwa dari lima sudut pandang: <b>Entire</b>, <b>Detail</b>, <b>Frame</b>, <b>Angle</b>, <b>Time</b>. Di simulator ini kamu memegang “kamera virtual” di atas foto asli dari sebuah event, lalu menjepret sesuai misi tiap huruf.</p>
+      <p class="eyebrow ev-lbl">Pilih event</p>
+      <div class="ev-pick" id="evPick"></div>
+      <div class="hero-cta">
+        <button class="btn primary" data-go="0">Mulai simulasi</button>
+        <a class="btn ghost" href="#teori">Baca teorinya dulu</a>
+      </div>
+    </div>
+    <div class="hero-demo" aria-hidden="true">
+      <div class="demo-photo" id="demoFoto">
+        <div class="demo-vf"><span></span></div>
+      </div>
+      <div class="demo-cap"><b>Geser</b> jendela kamera · <b>zoom</b> lensa · <b>jepret</b></div>
+    </div>
+  </section>
+
+  <section id="teori" class="teori">
+    <h2>Lima huruf, lima tugas</h2>
+    <p class="sub">Metode ini dikenalkan Frank P. Hoy untuk fotojurnalistik. Tujuannya supaya pemula nggak cuma pulang bawa satu jenis foto, tapi satu set foto yang lengkap ceritanya.</p>
+    <div class="cards" id="teoriCards"></div>
+  </section>
+
+  <section class="cara">
+    <h2>Cara main</h2>
+    <ol>
+      <li><b>Baca misinya</b> di panel kanan (di HP: di bawah foto).</li>
+      <li><b>Atur kamera</b>: seret foto untuk menggeser bingkai, pakai slider lensa (atau scroll/pinch) untuk zoom.</li>
+      <li><b>Lihat ceklisnya</b>. Hijau artinya syarat sudah terpenuhi.</li>
+      <li><b>Jepret</b> (tombol bulat atau tombol spasi). Kamu dapat skor dan masukan, lalu lanjut ke huruf berikutnya.</li>
+      <li>Di akhir, lima jepretanmu disusun jadi <b>satu cerita foto</b> yang bisa diunduh.</li>
+    </ol>
+  </section>
+
+  <footer class="foot" id="kredit"></footer>
+</main>
+
+<!-- MISI -->
+<main id="misi" class="view" hidden>
+  <div class="misi-grid">
+    <section class="kamera">
+      <p class="misi-hp"><b id="pHurufM">E</b><span id="pMisiM"></span></p>
+      <div class="stage" id="stage">
+        <img id="foto" alt="">
+        <div class="hints" id="hints"></div>
+        <div class="vf" id="vf">
+          <i class="g g1"></i><i class="g g2"></i><i class="g g3"></i><i class="g g4"></i>
+          <b class="c c1"></b><b class="c c2"></b><b class="c c3"></b><b class="c c4"></b>
+          <span class="vf-chip" id="vfChip">50 mm</span>
+        </div>
+        <div class="flash" id="flash"></div>
+        <div class="drag-tip" id="dragTip">Seret untuk menggeser kamera</div>
+      </div>
+
+      <div class="ctrl">
+        <label class="ctl lensa">
+          <span>Lensa</span>
+          <input type="range" id="zoom" min="0" max="100" step="0.1" aria-label="Panjang lensa">
+          <output id="zoomOut">50 mm</output>
+        </label>
+        <label class="ctl miring" id="ctlRot" hidden>
+          <span>Miring</span>
+          <input type="range" id="rot" min="-25" max="25" step="1" value="0" aria-label="Kemiringan kamera">
+          <output id="rotOut">0°</output>
+        </label>
+        <div class="ctl tinggi" id="ctlTinggi" hidden>
+          <span>Posisi kamera</span>
+          <div class="seg" id="tinggiSeg"></div>
+        </div>
+        <div class="ctl waktu" id="ctlWaktu" hidden>
+          <button class="chip" id="play">⏸ Jeda</button>
+          <div class="seg" id="speedSeg">
+            <button data-fps="3" class="on">Pelan</button>
+            <button data-fps="6">Normal</button>
+          </div>
+          <input type="range" id="scrub" min="1" max="9" step="1" value="1" aria-label="Pilih frame">
+          <output id="frameOut">1/9</output>
+        </div>
+        <div class="ctl toggles">
+          <label class="tg"><input type="checkbox" id="tgGrid" checked> Garis 1/3</label>
+          <label class="tg"><input type="checkbox" id="tgHint"> Petunjuk</label>
+        </div>
+      </div>
+    </section>
+
+    <aside class="panel">
+      <div class="p-head">
+        <span class="huruf" id="pHuruf">E</span>
+        <div>
+          <p class="eyebrow" id="pNama">Entire</p>
+          <h2 id="pJudul">Foto pembuka</h2>
+        </div>
+      </div>
+      <p class="def" id="pDef"></p>
+      <div class="brief">
+        <p class="eyebrow">Misi</p>
+        <p id="pMisi"></p>
+        <button class="link" id="gantiBrief" hidden>Ganti misi</button>
+      </div>
+      <div class="diagram" id="diagram" hidden></div>
+      <ul class="cek" id="cek"></ul>
+      <p class="tip" id="pTip"></p>
+      <div class="lcd-wrap">
+        <canvas id="lcd" width="600" height="400" aria-label="Pratinjau kamera"></canvas>
+        <span class="lcd-info" id="lcdInfo"></span>
+      </div>
+      <div class="shoot-row">
+        <button class="link" id="lewati">Lewati</button>
+        <button class="shutter" id="shutter" aria-label="Jepret"><span></span></button>
+        <span class="skor-live" id="skorLive">0</span>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<!-- HASIL -->
+<main id="hasil" class="view" hidden>
+  <section class="hasil-head">
+    <p class="eyebrow">Cerita fotomu</p>
+    <h1 id="hJudul">Siap liputan!</h1>
+    <p class="lead" id="hLead"></p>
+    <div class="big-skor"><span id="hSkor">0</span><small>/100</small></div>
+  </section>
+  <section class="story" id="story"></section>
+  <div class="hasil-cta">
+    <button class="btn primary" id="unduh">Unduh cerita (PNG)</button>
+    <button class="btn ghost" data-go="0">Ulangi dari E</button>
+  </div>
+  <section class="rangkum">
+    <h2>Yang perlu kamu ingat</h2>
+    <ul id="hTips"></ul>
+  </section>
+</main>
+
+<!-- HASIL JEPRET -->
+<div class="modal" id="modal" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="mJudul">
+    <img id="mFoto" alt="Hasil jepretan">
+    <div class="m-body">
+      <div class="m-top">
+        <div>
+          <p class="eyebrow" id="mHuruf">E · Entire</p>
+          <h3 id="mJudul">Mantap!</h3>
+        </div>
+        <div class="m-skor"><span id="mSkor">0</span><small>/100</small></div>
+      </div>
+      <ul class="cek" id="mCek"></ul>
+      <p class="m-saran" id="mSaran"></p>
+      <div class="m-cta">
+        <button class="btn ghost" id="ulang">Coba lagi</button>
+        <button class="btn primary" id="lanjut">Lanjut</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
