@@ -19,6 +19,15 @@ const EVENTS = {
     judul: 'Festival Pacu Jalur 2026',
     ket: 'Lomba perahu panjang di sungai, ribuan penonton di tepian.',
     kredit: 'Foto: Vamos Shott · Festival Pacu Jalur, Kuantan Singingi, Agustus 2026',
+    alt: {
+      pacu_entire: 'Sungai lebar dengan ribuan penonton di tepian, orang-orang di dalam air, dan jalur di kejauhan',
+      pacu_detail: 'Awak jalur berikat kepala kuning mendayung, pemimpin berbaju oranye berdiri di tengah',
+      pacu_frame: 'Jembatan gantung dan menara festival, dibingkai benda blur di depan kamera',
+      pacu_angle_low: 'Tukang onjai berdiri di haluan jalur, difoto dari dekat permukaan air',
+      pacu_angle_eye: 'Awak jalur Rimbo Sakti mendayung, difoto dari samping setinggi mereka',
+      pacu_angle_high: 'Awak jalur berseragam oranye dan biru, difoto dari atas jembatan',
+      time: 'tukang onjai di haluan jalur',
+    },
     sampul: 'pacu_entire',
     E: {
       img: 'pacu_entire', start: { cx: .5, cy: .55, f: 70 },
@@ -262,7 +271,26 @@ let timer = null, dragged = false;
 const ev = () => EVENTS[S.ev];
 const dat = () => ev()[MISI[S.i].k];
 try { const e = localStorage.getItem('edfat_ev'); if (EVENTS[e]) S.ev = evDasar = e; } catch (err) { /* tanpa storage */ }
-HASIL[S.ev] = S.hasil;
+// Progres disimpan per event di perangkat (foto upload 'kamu' tidak disimpan).
+function muatHasil(e) {
+  try {
+    const h = JSON.parse(localStorage.getItem('edfat_hasil_' + e));
+    if (Array.isArray(h) && h.length === MISI.length) return h;
+  } catch (err) { /* data rusak / tanpa storage */ }
+  return Array(MISI.length).fill(null);
+}
+function simpanHasil() {
+  if (EVENTS[S.ev].aktif) return;
+  try { localStorage.setItem('edfat_hasil_' + S.ev, JSON.stringify(S.hasil)); } catch (err) { /* penuh / tanpa storage */ }
+}
+function mulaiUlang() {
+  if (!confirm('Hapus semua skor dan jepretan untuk event ini, lalu mulai dari E lagi?')) return;
+  S.hasil = HASIL[S.ev] = Array(MISI.length).fill(null);
+  try { localStorage.removeItem('edfat_hasil_' + S.ev); } catch (err) { /* tanpa storage */ }
+  renderBeranda();
+  renderSteps('home');
+}
+S.hasil = HASIL[S.ev] = muatHasil(S.ev);
 
 /* ---------- gambar ---------- */
 const CACHE = {}, URLS = {}; // URLS: foto upload (object URL) per nama
@@ -285,11 +313,15 @@ function berikut(i) {
   for (let j = i + 1; j < MISI.length; j++) if (bisa(j)) return j;
   return -1;
 }
+// Foto besar baru diunduh saat huruf itu dibuka (beranda cukup pakai thumbnail).
+function preloadHuruf(k) {
+  const e = ev(), d = e[k];
+  if (k === 'A') Object.values(d.tinggi).forEach(t => foto(t.img));
+  else if (k === 'T') for (let n = 1; n <= d.n; n++) foto(d.img(n));
+  else foto(d.img);
+}
 function preload() {
-  const e = ev();
-  [e.E.img, e.D.img, e.F.img].forEach(foto);
-  Object.values(e.A.tinggi).forEach(t => foto(t.img));
-  for (let n = 1; n <= e.T.n; n++) foto(e.T.img(n));
+  if (ev().aktif) MISI.forEach(m => preloadHuruf(m.k)); // foto upload sudah ada di perangkat
 }
 function imgNow() {
   const k = MISI[S.i].k, d = dat();
@@ -300,7 +332,7 @@ function imgNow() {
 
 /* ---------- view ---------- */
 function show(id) {
-  if (id === 'home' && S.ev !== evDasar) { S.ev = evDasar; S.hasil = HASIL[evDasar]; preload(); renderEvent(); }
+  if (id === 'home' && S.ev !== evDasar) { S.ev = evDasar; S.hasil = HASIL[evDasar]; renderEvent(); }
   if (id === 'home') renderBeranda();
   for (const v of ['home', 'misi', 'hasil', 'analisis', 'pelajaran']) $(v).hidden = v !== id;
   // mode fokus: selama pelajaran (termasuk kamera di dalamnya) menu atas disembunyikan
@@ -312,13 +344,19 @@ function show(id) {
   renderSteps(id);
 }
 function renderSteps(view) {
+  // Event bawaan: huruf membuka pelajaran (sama dengan jalur di beranda).
+  // Foto upload tidak punya pelajaran, jadi langsung ke kamera.
+  const pintu = ev().aktif ? 'data-go' : 'data-les';
+  const kini = view === 'pelajaran' && S.les ? S.les.i : view === 'misi' ? S.i : -1;
   $('steps').innerHTML = MISI.map((m, i) =>
-    `<button class="step ${view === 'misi' && S.i === i ? 'on' : ''} ${S.hasil[i] ? 'done' : ''}" data-go="${i}" title="${m.nama}"${bisa(i) ? '' : ' disabled'}>${m.k}</button>`
+    `<button class="step ${kini === i ? 'on' : ''} ${S.hasil[i] ? 'done' : ''}" ${pintu}="${i}"
+      aria-label="${m.nama}${S.hasil[i] ? `, selesai skor ${S.hasil[i].skor}` : ''}"${bisa(i) ? '' : ' disabled'}>${m.k}</button>`
   ).join('') + `<button class="step end ${view === 'hasil' ? 'on' : ''}" data-go="hasil">Hasil</button>`;
 }
 
 function mulai(i, les = false) {
   stopPlay();
+  if (bisa(i)) preloadHuruf(MISI[i].k);
   if (!les) S.les = null;
   else if (S.les) S.les.layar = 3;
   if (!bisa(i)) { const j = berikut(i); if (j < 0) return tampilHasil(); i = j; }
@@ -470,12 +508,13 @@ function jepret() {
   fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go');
 
   const c = document.createElement('canvas'), r = rasioNow();
-  c.width = r >= 1 ? 1200 : 900; c.height = Math.round(c.width / r);
+  c.width = r >= 1 ? 960 : 720; c.height = Math.round(c.width / r); // cukup tajam, tetap muat di penyimpanan
   drawCrop(c.getContext('2d'), c.width, c.height);
   const m = MISI[S.i];
   const res = m.nilai(S, dat());
   const skor = res.items.reduce((a, b) => a + b.pts, 0);
-  S.hasil[S.i] = { img: c.toDataURL('image/jpeg', .86), skor, k: m.k, nama: m.nama };
+  S.hasil[S.i] = { img: c.toDataURL('image/jpeg', .8), skor, k: m.k, nama: m.nama };
+  simpanHasil();
 
   $('mFoto').src = S.hasil[S.i].img;
   $('mHuruf').textContent = `${m.k} · ${m.nama}`;
@@ -673,9 +712,9 @@ function renderEvent() {
   document.querySelector('.ev-lbl').hidden = satu;
   $('evPick').innerHTML = daftar.map(([k, e]) =>
     `<button class="ev ${S.ev === k ? 'on' : ''}" data-ev="${k}" aria-pressed="${S.ev === k}">
-      <img src="img/${e.sampul}.jpg" alt=""><span><b>${e.nama}</b><small>${e.ket}</small></span></button>`
+      <img src="img/thumb/${e.sampul}.jpg" alt=""><span><b>${e.nama}</b><small>${e.ket}</small></span></button>`
   ).join('');
-  $('demoFoto').style.backgroundImage = `url(${URLS[ev().sampul] || `img/${ev().sampul}.jpg`})`;
+  $('demoFoto').style.backgroundImage = `url(${srcThumb(ev().sampul)})`;
   $('kredit').textContent = ev().kredit + '.';
   renderBeranda();
 }
@@ -688,6 +727,13 @@ function gambarHuruf(k) {
   return d.img;
 }
 const srcGambar = n => URLS[n] || `img/${n}.jpg`;
+const srcThumb = n => URLS[n] || `img/thumb/${n}.jpg`;
+function altGambar(n) {
+  const a = ev().alt || {}, t = /_(\d+)$/.exec(n);
+  if (a[n]) return a[n];
+  if (/time_/.test(n) && t) return `Foto beruntun ke-${t[1]}: ${a.time || 'satu momen'}`;
+  return analisis && /^u_/.test(n) ? (analisis.isi || 'Foto referensimu') : 'Foto latihan';
+}
 function renderBeranda() {
   const h = S.hasil, selesai = h.filter(Boolean).length;
   const next = MISI.findIndex((m, i) => !h[i]);
@@ -698,7 +744,7 @@ function renderBeranda() {
     return `<li class="lk ${r ? 'done' : ''} ${i === next ? 'next' : ''}">
       <span class="lk-huruf">${m.k}</span>
       <article class="lk-kartu">
-        <img src="${srcGambar(gambarHuruf(m.k))}" alt="" loading="lazy">
+        <img src="${srcThumb(gambarHuruf(m.k))}" alt="${esc(altGambar(gambarHuruf(m.k)))}" loading="lazy" width="480" height="320">
         <div class="lk-isi">
           <p class="eyebrow">Langkah ${i + 1} · ${m.nama}</p>
           <h3>${m.judul}</h3>
@@ -729,17 +775,21 @@ function renderBeranda() {
     ${next >= 0
       ? `<button class="btn primary lebar" data-les="${next}">${selesai ? 'Lanjut' : 'Mulai'}: ${MISI[next].k} · ${MISI[next].nama}</button>`
       : '<button class="btn primary lebar" data-go="hasil">Lihat cerita fotomu</button>'}
-    <a class="link" href="#cara">Cara pakai simulator</a>`;
+    <a class="link" href="#cara">Cara pakai simulator</a>
+    ${selesai ? '<button class="link pudar" id="mulaiUlang">Mulai ulang dari awal</button>' : ''}`;
+  const cta = next >= 0
+    ? `<button class="btn primary lebar" data-les="${next}">${selesai ? 'Lanjut' : 'Mulai'}: ${MISI[next].k} · ${MISI[next].nama}</button>`
+    : '<button class="btn primary lebar" data-go="hasil">Lihat cerita fotomu</button>';
+  $('ctaHp').innerHTML = `<span class="cta-prog">${selesai}/5</span>${cta}`;
 }
 function pilihEvent(k) {
   if (k === S.ev) return;
   S.ev = k;
-  S.hasil = HASIL[k] = HASIL[k] || Array(MISI.length).fill(null);
+  S.hasil = HASIL[k] = HASIL[k] || muatHasil(k);
   if (!EVENTS[k].aktif) {
     evDasar = k;
     try { localStorage.setItem('edfat_ev', k); } catch (err) { /* tanpa storage */ }
   }
-  preload();
   renderEvent();
   renderSteps('home');
 }
@@ -792,6 +842,7 @@ function initUI() {
     berikut(S.i) >= 0 ? mulai(berikut(S.i)) : tampilHasil();
   });
   $('unduh').addEventListener('click', unduh);
+  document.addEventListener('click', e => { if (e.target.closest('#mulaiUlang')) mulaiUlang(); });
   $('bukaPanduan').addEventListener('click', bukaPanduan);
   $('tutupPanduan').addEventListener('click', tutupPanduan);
 
@@ -1083,11 +1134,13 @@ function potong(b, pad = 1.25) {
   const x = clamp((b[0] + b[2]) / 2 - w / 2, 0, 1 - w), y = clamp((b[1] + b[3]) / 2 - w / 2, 0, 1 - w);
   return [x, y, x + w, y + w];
 }
-function gambarHtml(img, kotak, kelas = '') {
-  if (!kotak) return `<div class="lf ${kelas}" style="background-image:url(${srcGambar(img)})"></div>`;
+// kecil = boleh pakai thumbnail (foto utuh tampil kecil); potongan selalu pakai foto besar
+function gambarHtml(img, kotak, kelas = '', label = '') {
+  const alt = esc(label || (kotak ? `Potongan dekat: ${altGambar(img)}` : altGambar(img)));
+  if (!kotak) return `<div class="lf ${kelas}" role="img" aria-label="${alt}" style="background-image:url(${kelas.includes('kecil') ? srcThumb(img) : srcGambar(img)})"></div>`;
   const w = kotak[2] - kotak[0];
   const px = w >= 1 ? 0 : kotak[0] / (1 - w) * 100, py = w >= 1 ? 0 : kotak[1] / (1 - w) * 100;
-  return `<div class="lf ${kelas}" style="background-image:url(${srcGambar(img)});background-size:${100 / w}% auto;background-position:${px}% ${py}%"></div>`;
+  return `<div class="lf ${kelas}" role="img" aria-label="${alt}" style="background-image:url(${srcGambar(img)});background-size:${100 / w}% auto;background-position:${px}% ${py}%"></div>`;
 }
 const tandai = list => list.map(([l, b]) =>
   `<span class="ak${b[0] > .6 ? ' kanan' : ''}" style="--c:var(--yellow);left:${b[0] * 100}%;top:${b[1] * 100}%;width:${(b[2] - b[0]) * 100}%;height:${(b[3] - b[1]) * 100}%"><em>${esc(l)}</em></span>`).join('');
@@ -1127,6 +1180,7 @@ function opsiTebak(k) {
 
 function mulaiPelajaran(i) {
   stopPlay();
+  preloadHuruf(MISI[i].k);
   $('modal').hidden = true;
   S.les = { i, layar: 0, pilih: -1, benar: false };
   tampilLayar();
@@ -1145,7 +1199,7 @@ function tampilLayar() {
   if (L.layar === 0) {
     let vis;
     if (k === 'A') vis = `<div class="lf-tiga">${['low', 'eye', 'high'].map(h =>
-      `<figure>${gambarHtml(e.A.tinggi[h].img)}<figcaption>${TINGGI[h].label}</figcaption></figure>`).join('')}</div>`;
+      `<figure>${gambarHtml(e.A.tinggi[h].img, null, 'kecil')}<figcaption>${TINGGI[h].label}</figcaption></figure>`).join('')}</div>`;
     else if (k === 'T') vis = `<div class="lf-strip">${Array.from({ length: e.T.n }, (x, j) => gambarHtml(e.T.img(j + 1), null, 'kecil')).join('')}</div>`;
     else if (k === 'D') vis = `<div class="lf-bingkai">${gambarHtml(e.D.img, potong(e.D.target[0][1]))}</div>
       <p class="les-cap">Hasil zoom ke <b>${esc(e.D.target[0][0].toLowerCase())}</b> dari foto event.</p>`;
@@ -1158,8 +1212,9 @@ function tampilLayar() {
     const opsi = opsiTebak(k);
     L.opsi = opsi;
     html += `<h2>${SOAL[k]}</h2><div class="les-opsi">${opsi.map((o, j) =>
-      `<button class="opsi ${L.pilih === j ? (o.benar ? 'benar' : 'salah') : ''}" data-opsi="${j}" ${L.benar ? 'disabled' : ''}>
-        ${gambarHtml(o.img, o.kotak)}<span class="opsi-no">${'ABC'[j]}</span></button>`).join('')}</div>`;
+      `<button class="opsi ${L.pilih === j ? (o.benar ? 'benar' : 'salah') : ''}" data-opsi="${j}" ${L.benar ? 'disabled' : ''}
+        aria-label="Pilihan ${'ABC'[j]}: ${esc(o.kotak ? `potongan dekat dari ${altGambar(o.img)}` : altGambar(o.img))}">
+        ${gambarHtml(o.img, o.kotak, o.kotak ? '' : 'kecil')}<span class="opsi-no" aria-hidden="true">${'ABC'[j]}</span></button>`).join('')}</div>`;
     btn.disabled = !L.benar;
     btn.textContent = L.benar ? 'Lanjut' : 'Pilih satu foto';
     if (L.pilih >= 0) umpan(L.opsi[L.pilih].benar ? BENAR[k] : `Belum tepat. ${L.opsi[L.pilih].why} Coba lagi.`, L.opsi[L.pilih].benar);
@@ -1237,7 +1292,6 @@ function bunyiBenar() {
   } catch (err) { /* tanpa suara */ }
 }
 
-preload();
 initUI();
 initKamu();
 initPelajaran();

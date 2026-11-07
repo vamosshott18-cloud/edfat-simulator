@@ -53,6 +53,7 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 400; line-height: 1.1; marg
   font-weight: 800; font-size: 14px; color: var(--ink-2);
   position: relative;
 }
+.step::before { content: ""; position: absolute; inset: -6px; } /* area sentuh 44px */
 .step.on { border-color: var(--teal); background: var(--teal); color: var(--ink); }
 .step.done { border-color: var(--teal); color: var(--teal-dk); background: var(--pale); }
 .step.done::after {
@@ -74,7 +75,7 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 400; line-height: 1.1; marg
 .btn.primary { background: var(--teal); color: var(--ink); box-shadow: 0 6px 18px rgba(17, 179, 177, .35); }
 .btn.ghost { background: var(--card); border-color: var(--line); color: var(--ink); }
 .link { background: none; border: 0; padding: 4px 0; color: var(--teal-dk); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
-.chip { border: 1.5px solid var(--line); background: var(--card); border-radius: 999px; padding: 6px 14px; font-weight: 700; font-size: 14px; }
+.chip { border: 1.5px solid var(--line); background: var(--card); border-radius: 999px; padding: 10px 16px; min-height: 44px; font-weight: 700; font-size: 14px; }
 
 /* ---------- home ---------- */
 #home { max-width: 1160px; margin: 0 auto; padding: 0 16px 40px; }
@@ -148,7 +149,8 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 400; line-height: 1.1; marg
 .lk-tip b { color: var(--ink); }
 .lk-ex { color: var(--teal-dk); font-weight: 600; }
 .lk-aksi { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-top: auto; padding-top: 6px; }
-.kecil-btn { min-height: 40px; padding: 0 18px; font-size: 14px; }
+.kecil-btn { min-height: 44px; padding: 0 18px; font-size: 14px; }
+.link.pudar { color: var(--ink-2); font-weight: 600; font-size: 13px; }
 .st { font-size: 13px; font-weight: 700; color: var(--ink-2); }
 .st.ok { color: var(--green-tx); }
 .st.now { color: var(--teal-dk); }
@@ -260,10 +262,10 @@ kbd { font: 700 12px var(--sans); border: 1px solid var(--line); border-bottom-w
 .waktu input { flex: 1 1 160px; }
 .toggles { margin-left: auto; gap: 14px; }
 .tg { display: flex; align-items: center; gap: 6px; font-weight: 600; color: var(--ink-2); cursor: pointer; }
-input[type=range] { accent-color: var(--teal); height: 28px; }
+input[type=range] { accent-color: var(--teal); height: 44px; }
 input[type=checkbox] { accent-color: var(--teal); width: 18px; height: 18px; }
 .seg { display: inline-flex; background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 3px; }
-.seg button { border: 0; background: none; padding: 6px 12px; border-radius: 999px; font-weight: 700; font-size: 13px; color: var(--ink-2); }
+.seg button { border: 0; background: none; padding: 10px 14px; min-height: 40px; border-radius: 999px; font-weight: 700; font-size: 13px; color: var(--ink-2); }
 .seg button.on { background: var(--teal); color: var(--ink); }
 
 .panel {
@@ -348,7 +350,7 @@ body.fokus .top { display: none; }
 .les { width: min(680px, 100%); margin: 0 auto; padding: 16px 16px 140px; flex: 1; }
 .les-top { display: flex; align-items: center; gap: 14px; padding: 6px 0 18px; }
 .les-top.mini { max-width: 1400px; margin: 0 auto; padding: 0 0 12px; }
-.les-x { width: 40px; height: 40px; border-radius: 50%; border: 0; background: none; font-size: 20px; color: var(--ink-2); flex: none; }
+.les-x { width: 44px; height: 44px; border-radius: 50%; border: 0; background: none; font-size: 20px; color: var(--ink-2); flex: none; }
 .les-x:hover { background: var(--pale); }
 .les-bar { flex: 1; display: grid; grid-auto-flow: column; gap: 6px; }
 .les-bar i { height: 10px; border-radius: 999px; background: var(--line); }
@@ -514,6 +516,10 @@ label.btn { cursor: pointer; }
 @keyframes putar { to { transform: rotate(360deg); } }
 .step[disabled] { opacity: .35; cursor: not-allowed; }
 
+/* ---------- akses ---------- */
+:focus-visible { outline: 3px solid var(--teal-dk); outline-offset: 2px; border-radius: 6px; }
+.cta-hp { display: none; }
+
 /* ---------- responsive ---------- */
 @media (max-width: 1180px) {
   .misi-grid { grid-template-columns: minmax(0, 1fr) 330px; }
@@ -537,6 +543,27 @@ label.btn { cursor: pointer; }
   .ref { grid-template-columns: 1fr; gap: 20px; }
 }
 @media (max-width: 760px) {
+  .brand-mark { display: none; }
+  .brand::before {
+    content: ""; width: 40px; height: 40px; border-radius: 12px; background: var(--pale) center/22px no-repeat
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230B6B6A' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 11l9-7 9 7'/%3E%3Cpath d='M5 10v10h14V10'/%3E%3Cpath d='M10 20v-5h4v5'/%3E%3C/svg%3E");
+  }
+  .step { width: 36px; height: 36px; }
+  .step::before { inset: -4px; }
+  #home { padding-bottom: 96px; }
+  .cta-hp {
+    display: flex; align-items: center; gap: 12px;
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 25;
+    padding: 12px 16px max(12px, env(safe-area-inset-bottom));
+    background: rgba(255, 255, 255, .96); border-top: 1px solid var(--line);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  }
+  .cta-hp .btn { flex: 1; min-height: 50px; }
+  .cta-prog {
+    flex: none; width: 50px; height: 50px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--pale); color: var(--teal-dk); font-weight: 800; font-size: 14px;
+  }
+  .progres .lebar { display: none; }
   .les-opsi { grid-template-columns: 1fr; }
   .opsi .lf { aspect-ratio: 3/1.6; }
   .les-teks { font-size: 16px; }
@@ -550,7 +577,7 @@ label.btn { cursor: pointer; }
   .lk-kartu img { max-height: 140px; min-height: 0; aspect-ratio: 3/1.2; }
   .lk-isi { padding: 0 4px 4px; }
   .brand-name { display: none; }
-  .step { width: 32px; height: 32px; font-size: 13px; }
+  .step { width: 36px; height: 36px; font-size: 13px; }
   .step.end { padding: 0 9px; }
   #misi { padding: 0; }
   .misi-hp {
@@ -582,10 +609,13 @@ label.btn { cursor: pointer; }
 @media (max-width: 420px) {
   .ev-pick { grid-template-columns: 1fr; }
   .cara-grid { grid-template-columns: 1fr; }
-  .step { width: 28px; height: 28px; font-size: 12px; }
+  .step { width: 36px; height: 36px; font-size: 13px; }
   .steps { gap: 4px; }
 }
 @media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important; animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important; scroll-behavior: auto !important;
+  }
   .demo-vf { animation: none; }
-  * { scroll-behavior: auto; }
 }
