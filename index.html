@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=12">
+<link rel="stylesheet" href="app.css?v=13">
 </head>
 <body>
 
@@ -137,7 +137,10 @@
           <span class="vf-chip" id="vfChip">50 mm</span>
         </div>
         <div class="flash" id="flash"></div>
-        <div class="drag-tip" id="dragTip">Seret untuk menggeser kamera</div>
+        <div class="drag-tip" id="dragTip" aria-hidden="true">
+          <span class="titik"></span>
+          <span class="drag-pill">Seret foto untuk menggeser kamera</span>
+        </div>
       </div>
 
       <div class="ctrl">
@@ -275,6 +278,6 @@
   </div>
 </div>
 
-<script src="app.js?v=10"></script>
+<script src="app.js?v=13"></script>
 </body>
 </html>

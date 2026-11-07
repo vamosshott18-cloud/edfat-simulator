@@ -241,12 +241,26 @@ kbd { font: 700 12px var(--sans); border: 1px solid var(--line); border-bottom-w
 .flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
 .flash.go { animation: flash .45s ease-out; }
 @keyframes flash { 0% { opacity: .9; } 100% { opacity: 0; } }
-.drag-tip {
-  position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
-  background: rgba(16, 42, 44, .78); color: #fff; font-size: 13px; font-weight: 600;
-  padding: 6px 12px; border-radius: 999px; pointer-events: none; transition: opacity .4s;
-}
+.drag-tip { position: absolute; inset: 0; pointer-events: none; transition: opacity .4s; }
 .drag-tip.off { opacity: 0; }
+.drag-pill {
+  position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); white-space: nowrap;
+  background: rgba(16, 42, 44, .82); color: #fff; font-size: 13px; font-weight: 700;
+  padding: 7px 14px; border-radius: 999px;
+}
+/* titik sentuh yang "menyeret" foto: contoh gerakan untuk pemula */
+.titik {
+  position: absolute; left: 50%; top: 50%; width: 38px; height: 38px; margin: -19px 0 0 -19px; border-radius: 50%;
+  background: rgba(255, 255, 255, .85); box-shadow: 0 0 0 6px rgba(255, 255, 255, .35), 0 6px 16px rgba(0, 0, 0, .3);
+  animation: seret 2.6s ease-in-out infinite;
+}
+@keyframes seret {
+  0% { transform: translate(-60px, 10px) scale(.6); opacity: 0; }
+  15% { transform: translate(-60px, 10px) scale(1); opacity: 1; }
+  25% { transform: translate(-60px, 10px) scale(.85); }
+  70% { transform: translate(60px, -10px) scale(.85); opacity: 1; }
+  85%, 100% { transform: translate(60px, -10px) scale(1.2); opacity: 0; }
+}
 
 .ctrl {
   user-select: none; -webkit-user-select: none;
@@ -515,6 +529,55 @@ label.btn { cursor: pointer; }
 .putar { width: 44px; height: 44px; border-radius: 50%; border: 4px solid var(--pale); border-top-color: var(--teal); animation: putar 0.9s linear infinite; }
 @keyframes putar { to { transform: rotate(360deg); } }
 .step[disabled] { opacity: .35; cursor: not-allowed; }
+
+/* ---------- animasi petunjuk: "mulai dari sini" ---------- */
+@keyframes denyut {
+  0% { box-shadow: 0 0 0 0 rgba(17, 179, 177, .55), 0 6px 18px rgba(17, 179, 177, .3); }
+  70% { box-shadow: 0 0 0 14px rgba(17, 179, 177, 0), 0 6px 18px rgba(17, 179, 177, .3); }
+  100% { box-shadow: 0 0 0 0 rgba(17, 179, 177, 0), 0 6px 18px rgba(17, 179, 177, .3); }
+}
+.btn.denyut:not(:disabled) { animation: denyut 2s ease-out infinite; }
+@keyframes riak { 0% { transform: scale(1); opacity: .7; } 100% { transform: scale(1.65); opacity: 0; } }
+.lk-huruf { position: relative; }
+.lk.next .lk-huruf::after {
+  content: ""; position: absolute; inset: -3px; border-radius: inherit; border: 3px solid var(--teal);
+  animation: riak 1.8s ease-out infinite;
+}
+.lk-kartu { position: relative; }
+.mulai-sini {
+  position: absolute; top: -13px; left: 16px; z-index: 2;
+  background: var(--ink); color: #fff; font-size: 12px; font-weight: 800; letter-spacing: .02em;
+  padding: 5px 12px 5px 24px; border-radius: 999px; animation: tunjuk 1.4s ease-in-out infinite;
+}
+.mulai-sini::before {
+  content: ""; position: absolute; left: 9px; top: 50%; width: 7px; height: 7px; margin-top: -4px;
+  border-left: 2.5px solid var(--cyan); border-bottom: 2.5px solid var(--cyan); transform: rotate(45deg);
+}
+@keyframes tunjuk { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-6px); } }
+/* kuis: pilihan bergantian "melambai" mengajak dipilih */
+.les-opsi.ajak .opsi { animation: ajak 3.2s ease-in-out infinite; }
+.les-opsi.ajak .opsi:nth-child(2) { animation-delay: .25s; }
+.les-opsi.ajak .opsi:nth-child(3) { animation-delay: .5s; }
+@keyframes ajak {
+  0%, 30%, 100% { transform: none; border-color: var(--line); }
+  10% { transform: translateY(-5px); border-color: var(--teal); }
+}
+/* kamera: slider lensa disorot sampai dipakai, tombol jepret berdenyut saat skor sudah bagus */
+.ctl.lensa { border-radius: 12px; padding: 2px 8px; margin: -2px -8px; }
+.ctl.lensa.ajak { animation: sorot 2s ease-out infinite; }
+@keyframes sorot {
+  0% { box-shadow: 0 0 0 0 rgba(17, 179, 177, .5); background: var(--pale); }
+  70% { box-shadow: 0 0 0 10px rgba(17, 179, 177, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(17, 179, 177, 0); background: transparent; }
+}
+.shutter { position: relative; }
+.shutter.siap { animation: denyut 1.2s ease-out infinite; border-color: var(--teal-dk); }
+.shutter.siap::after {
+  content: "Jepret!"; position: absolute; left: 50%; bottom: calc(100% + 8px); transform: translateX(-50%);
+  background: var(--ink); color: #fff; font: 800 12px/1 var(--sans); padding: 6px 10px; border-radius: 8px; white-space: nowrap;
+  animation: tunjuk-atas 1.2s ease-in-out infinite;
+}
+@keyframes tunjuk-atas { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -4px); } }
 
 /* ---------- akses ---------- */
 :focus-visible { outline: 3px solid var(--teal-dk); outline-offset: 2px; border-radius: 6px; }

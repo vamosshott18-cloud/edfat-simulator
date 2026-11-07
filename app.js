@@ -267,7 +267,7 @@ const S = {
 };
 const HASIL = {};        // hasil jepretan disimpan per event, supaya pindah event tidak menghapus
 let evDasar = S.ev;      // event bawaan beranda (bukan 'kamu')
-let timer = null, dragged = false;
+let timer = null, dragged = false, dizoom = false; // dipakai untuk animasi petunjuk
 const ev = () => EVENTS[S.ev];
 const dat = () => ev()[MISI[S.i].k];
 try { const e = localStorage.getItem('edfat_ev'); if (EVENTS[e]) S.ev = evDasar = e; } catch (err) { /* tanpa storage */ }
@@ -384,6 +384,7 @@ function mulai(i, les = false) {
   $('gantiBrief').hidden = m.k !== 'A' || !!d.tebak;
   $('diagram').hidden = m.k !== 'A';
   $('dragTip').classList.toggle('off', dragged);
+  document.querySelector('.ctl.lensa').classList.toggle('ajak', !dizoom && 'EDF'.includes(m.k));
   renderMisiText();
   renderHints();
   show('misi');
@@ -465,6 +466,7 @@ function render() {
   const sl = $('skorLive');
   sl.textContent = skor;
   sl.classList.toggle('hi', skor >= 85);
+  $('shutter').classList.toggle('siap', skor >= 85);
   sl.title = 'Perkiraan skor kalau dijepret sekarang';
 
   cancelAnimationFrame(rafId);
@@ -673,6 +675,11 @@ function roundRect(x, X, Y, W, H, r) {
 }
 
 /* ---------- input ---------- */
+function sudahZoom() {
+  if (dizoom) return;
+  dizoom = true;
+  document.querySelector('.ctl.lensa').classList.remove('ajak');
+}
 function initStage() {
   const st = $('stage');
   const pts = new Map();
@@ -694,14 +701,14 @@ function initStage() {
       if (!dragged) { dragged = true; $('dragTip').classList.add('off'); }
     }
     p.x = e.clientX; p.y = e.clientY;
-    if (pts.size === 2 && pinch0) setF(f0 * jarak() / pinch0);
+    if (pts.size === 2 && pinch0) { sudahZoom(); setF(f0 * jarak() / pinch0); }
     render();
   });
   const up = e => { pts.delete(e.pointerId); if (pts.size < 2) pinch0 = 0; if (!pts.size) st.classList.remove('drag'); };
   st.addEventListener('pointerup', up);
   st.addEventListener('pointercancel', up);
   st.addEventListener('lostpointercapture', up);
-  st.addEventListener('wheel', e => { e.preventDefault(); setF(S.f * Math.exp(-e.deltaY * .0015)); render(); }, { passive: false });
+  st.addEventListener('wheel', e => { e.preventDefault(); sudahZoom(); setF(S.f * Math.exp(-e.deltaY * .0015)); render(); }, { passive: false });
   function jarak() { const [a, b] = [...pts.values()]; return Math.hypot(a.x - b.x, a.y - b.y) || 1; }
 }
 
@@ -744,6 +751,7 @@ function renderBeranda() {
     return `<li class="lk ${r ? 'done' : ''} ${i === next ? 'next' : ''}">
       <span class="lk-huruf">${m.k}</span>
       <article class="lk-kartu">
+        ${i === next ? `<span class="mulai-sini" aria-hidden="true">${selesai ? 'Lanjut di sini' : 'Mulai di sini'}</span>` : ''}
         <img src="${srcThumb(gambarHuruf(m.k))}" alt="${esc(altGambar(gambarHuruf(m.k)))}" loading="lazy" width="480" height="320">
         <div class="lk-isi">
           <p class="eyebrow">Langkah ${i + 1} · ${m.nama}</p>
@@ -756,7 +764,7 @@ function renderBeranda() {
             <p class="lk-ex">${m.ex}</p>
           </details>
           <div class="lk-aksi">
-            <button class="btn ${i === next ? 'primary' : 'ghost'} kecil-btn" data-les="${i}">${r ? 'Ulangi' : 'Mulai'} pelajaran ${m.k}</button>
+            <button class="btn ${i === next ? 'primary denyut' : 'ghost'} kecil-btn" data-les="${i}">${r ? 'Ulangi' : 'Mulai'} pelajaran ${m.k}</button>
             ${status}
           </div>
         </div>
@@ -773,12 +781,12 @@ function renderBeranda() {
       <p>${selesai ? `Rata-rata skor ${rata}.` : 'Mulai dari E. Butuh sekitar 10 menit untuk kelimanya.'}</p>
     </div>
     ${next >= 0
-      ? `<button class="btn primary lebar" data-les="${next}">${selesai ? 'Lanjut' : 'Mulai'}: ${MISI[next].k} · ${MISI[next].nama}</button>`
+      ? `<button class="btn primary lebar denyut" data-les="${next}">${selesai ? 'Lanjut' : 'Mulai'}: ${MISI[next].k} · ${MISI[next].nama}</button>`
       : '<button class="btn primary lebar" data-go="hasil">Lihat cerita fotomu</button>'}
     <a class="link" href="#cara">Cara pakai simulator</a>
     ${selesai ? '<button class="link pudar" id="mulaiUlang">Mulai ulang dari awal</button>' : ''}`;
   const cta = next >= 0
-    ? `<button class="btn primary lebar" data-les="${next}">${selesai ? 'Lanjut' : 'Mulai'}: ${MISI[next].k} · ${MISI[next].nama}</button>`
+    ? `<button class="btn primary lebar denyut" data-les="${next}">${selesai ? 'Lanjut' : 'Mulai'}: ${MISI[next].k} · ${MISI[next].nama}</button>`
     : '<button class="btn primary lebar" data-go="hasil">Lihat cerita fotomu</button>';
   $('ctaHp').innerHTML = `<span class="cta-prog">${selesai}/5</span>${cta}`;
 }
@@ -808,7 +816,7 @@ function initUI() {
     else mulai(+v);
   });
 
-  $('zoom').addEventListener('input', e => { setF(vToF(+e.target.value)); render(); });
+  $('zoom').addEventListener('input', e => { sudahZoom(); setF(vToF(+e.target.value)); render(); });
   $('rot').addEventListener('input', e => { S.rot = +e.target.value; render(); });
   $('tinggiSeg').addEventListener('click', e => {
     const b = e.target.closest('[data-h]'); if (!b) return;
@@ -1216,6 +1224,7 @@ function tampilLayar() {
         aria-label="Pilihan ${'ABC'[j]}: ${esc(o.kotak ? `potongan dekat dari ${altGambar(o.img)}` : altGambar(o.img))}">
         ${gambarHtml(o.img, o.kotak, o.kotak ? '' : 'kecil')}<span class="opsi-no" aria-hidden="true">${'ABC'[j]}</span></button>`).join('')}</div>`;
     btn.disabled = !L.benar;
+    if (!L.benar) html = html.replace('class="les-opsi"', 'class="les-opsi ajak"');
     btn.textContent = L.benar ? 'Lanjut' : 'Pilih satu foto';
     if (L.pilih >= 0) umpan(L.opsi[L.pilih].benar ? BENAR[k] : `Belum tepat. ${L.opsi[L.pilih].why} Coba lagi.`, L.opsi[L.pilih].benar);
   } else if (L.layar === 2) {
@@ -1237,6 +1246,7 @@ function tampilLayar() {
     btn.textContent = nx >= 0 ? `Lanjut ke ${MISI[nx].k} · ${MISI[nx].nama}` : 'Lihat cerita fotomu';
   }
   $('lesIsi').innerHTML = html;
+  btn.classList.toggle('denyut', !btn.disabled);
   show('pelajaran');
 }
 const dat0 = k => ev()[k];
