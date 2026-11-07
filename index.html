@@ -32,7 +32,7 @@
       <div class="ev-pick" id="evPick"></div>
       <div class="hero-cta">
         <button class="btn primary" data-go="0">Mulai simulasi</button>
-        <a class="btn ghost" href="#teori">Baca teorinya dulu</a>
+        <a class="btn ghost" href="#ref">Pakai fotomu sendiri</a>
       </div>
     </div>
     <div class="hero-demo" aria-hidden="true">
@@ -47,6 +47,25 @@
     <h2>Lima huruf, lima tugas</h2>
     <p class="sub">Metode ini dikenalkan Frank P. Hoy untuk fotojurnalistik. Tujuannya supaya pemula nggak cuma pulang bawa satu jenis foto, tapi satu set foto yang lengkap ceritanya.</p>
     <div class="cards" id="teoriCards"></div>
+  </section>
+
+  <section class="ref" id="ref">
+    <div class="ref-teks">
+      <p class="eyebrow">Pakai fotomu sendiri</p>
+      <h2>Punya foto referensi?</h2>
+      <p class="sub">Upload foto yang kamu suka, entah karyamu atau foto orang lain yang ingin kamu tiru. AI membaca foto itu masuk teknik EDFAT yang mana dan menjelaskan kenapa. Setelah itu fotonya langsung jadi bahan latihanmu di kamera virtual.</p>
+      <ul class="ref-poin">
+        <li><b>1 foto</b> untuk latihan Entire, Detail, Frame, dan Angle (sesuai isi fotonya).</li>
+        <li><b>2–10 foto beruntun</b> (burst satu momen) supaya bisa latihan Time juga.</li>
+      </ul>
+      <label class="btn primary" for="unggah">Upload foto referensi</label>
+      <p class="kecil">Foto dikirim ke Google Gemini hanya untuk dibaca, dan tidak disimpan oleh simulator ini. Di kuota gratis Gemini, Google bisa memakai data kiriman untuk meningkatkan layanannya, jadi jangan upload foto pribadi atau sensitif.</p>
+    </div>
+    <ol class="ref-alur" aria-label="Alurnya">
+      <li><b>1</b><span>Upload foto</span></li>
+      <li><b>2</b><span>AI baca tekniknya</span></li>
+      <li><b>3</b><span>Latihan dari foto itu</span></li>
+    </ol>
   </section>
 
   <section class="cara">
@@ -159,6 +178,22 @@
     <ul id="hTips"></ul>
   </section>
 </main>
+
+<!-- ANALISIS FOTO KAMU -->
+<main id="analisis" class="view" hidden>
+  <div class="a-grid">
+    <section class="a-kiri">
+      <div class="a-foto">
+        <img id="aFoto" alt="Foto referensimu">
+        <div class="a-kotak" id="aKotak"></div>
+      </div>
+      <div class="a-strip" id="aStrip"></div>
+    </section>
+    <aside class="panel a-panel" id="aPanel"></aside>
+  </div>
+</main>
+
+<input type="file" id="unggah" accept="image/*" multiple hidden>
 
 <!-- HASIL JEPRET -->
 <div class="modal" id="modal" hidden>

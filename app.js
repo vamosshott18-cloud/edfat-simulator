@@ -2,7 +2,7 @@
    Koordinat semua kotak dinormalisasi 0..1 terhadap lebar/tinggi foto.
    Semua foto 3:2 dan bingkai kamera juga 3:2, jadi lebar & tinggi bingkai = w. */
 
-const F_MIN = 24, F_MAX = 200;
+const F_MIN = 24, F_MAX = 200, W_MIN = F_MIN / F_MAX;
 
 // Kesan tiap tinggi kamera, sama untuk semua event.
 const TINGGI = {
@@ -111,14 +111,17 @@ const MISI = [
     pelajaran: '<b>Detail</b> itu satu benda, satu fokus. Kalau masih ada tiga hal di frame, berarti belum detail.',
     nilai(s, d) {
       const r = rect(s);
-      let best = null, fill = 0;
-      for (const [n, b] of d.target) {
-        if (frac(b, r) < .9) continue;
-        const fl = area(b) / (s.w * s.w);
-        if (fl > fill) { fill = fl; best = n; }
+      // rasio = seberapa penuh detail mengisi frame dibanding yang dibutuhkan.
+      // Detail yang sangat kecil tidak mungkin mengisi 25% frame di 200 mm, jadi ambangnya ikut turun.
+      let best = null, rasio = 0;
+      for (const [n, kotak] of d.target) {
+        if (frac(kotak, r) < .9) continue;
+        const butuh = Math.min(.25, .8 * area(kotak) / W_MIN ** 2);
+        const rs = area(kotak) / (s.w * s.w) / butuh;
+        if (rs > rasio) { rasio = rs; best = n; }
       }
       const panjang = s.f >= 70;
-      const penuh = fill >= .25 ? 1 : fill >= .12 ? .5 : 0;
+      const penuh = rasio >= 1 ? 1 : rasio >= .5 ? .5 : 0;
       return {
         items: [
           item('Ada satu detail utuh di frame' + (best ? ` (${best.toLowerCase()})` : ''), !!best, 30),
@@ -140,6 +143,22 @@ const MISI = [
     nilai(s, d) {
       const r = rect(s), sub = d.subj[1];
       const utuh = frac(sub, r) >= .95;
+      if (d.tipe === 'ai') {
+        const kena = d.bingkai.filter(([, b]) => frac(b, r) >= .3).length;
+        const bingkai = kena >= 2 || (kena && d.bingkai.length === 1) ? 1 : kena ? .5 : 0;
+        const dominan = Math.max(sub[2] - sub[0], sub[3] - sub[1]) / s.w >= .4;
+        return {
+          items: [
+            item(`${d.subj[0]} utuh di frame`, utuh, 35),
+            item('Elemen depan ikut membingkai', bingkai, 40),
+            item('Subjek tetap dominan', dominan, 25),
+          ],
+          saran: !utuh ? `${d.subj[0]} terpotong. Bingkai boleh di pinggir, tapi subjek harus utuh.`
+            : bingkai < 1 ? `Masukkan ${d.bingkai.map(b => b[0].toLowerCase()).join(' / ')} di pinggir frame, itu bingkai alaminya. Nyalakan “Petunjuk” untuk lihat posisinya.`
+            : !dominan ? 'Bingkainya dapat, tapi subjek jadi kecil. Zoom sedikit supaya dia tetap pusat perhatian.'
+            : 'Elemen depan membingkai subjek dan menuntun mata langsung ke dia. Foto jadi terasa berlapis.',
+        };
+      }
       const sisi = (d.sisi.kiri != null && r.x1 <= d.sisi.kiri) || (d.sisi.kanan != null && r.x2 >= d.sisi.kanan);
       const bawah = r.y2 >= d.bawah;
       let ke4, lbl4, saran4;
@@ -186,7 +205,7 @@ const MISI = [
         saran: !pas ? `Posisi “${a.label}” memberi kesan: ${a.efek.split('→ ')[1]} Misinya butuh posisi ${mau.label.toLowerCase()}.`
           : !utuh ? 'Sudutnya sudah benar, tapi subjeknya terpotong.'
           : !miring ? 'Sudutnya benar, tapi kemiringannya berlebihan. Dutch angle cukup 5–15° biar dinamis, bukan bikin pusing.'
-          : `Pas. ${mau.efek}`,
+          : d.alasan ? `Betul! ${d.alasan}` : `Pas. ${mau.efek}`,
       };
     },
   },
@@ -243,10 +262,25 @@ const dat = () => ev()[MISI[S.i].k];
 try { const e = localStorage.getItem('edfat_ev'); if (EVENTS[e]) S.ev = e; } catch (err) { /* tanpa storage */ }
 
 /* ---------- gambar ---------- */
-const CACHE = {};
+const CACHE = {}, URLS = {}; // URLS: foto upload (object URL) per nama
 function foto(name) {
-  if (!CACHE[name]) { const im = new Image(); im.src = `img/${name}.jpg`; im.onload = () => drawLCD(); CACHE[name] = im; }
+  if (!CACHE[name]) {
+    const im = new Image();
+    im.src = URLS[name] || `img/${name}.jpg`;
+    im.onload = () => { if (!$('misi').hidden) render(); };
+    CACHE[name] = im;
+  }
   return CACHE[name];
+}
+function rasioNow() {
+  const im = foto(imgNow());
+  return im.naturalWidth ? im.naturalWidth / im.naturalHeight : 1.5;
+}
+// Event 'kamu' hanya punya sebagian huruf (sesuai hasil analisis AI).
+const bisa = i => !ev().aktif || ev().aktif.includes(MISI[i].k);
+function berikut(i) {
+  for (let j = i + 1; j < MISI.length; j++) if (bisa(j)) return j;
+  return -1;
 }
 function preload() {
   const e = ev();
@@ -263,18 +297,19 @@ function imgNow() {
 
 /* ---------- view ---------- */
 function show(id) {
-  for (const v of ['home', 'misi', 'hasil']) $(v).hidden = v !== id;
+  for (const v of ['home', 'misi', 'hasil', 'analisis']) $(v).hidden = v !== id;
   window.scrollTo({ top: 0 });
   renderSteps(id);
 }
 function renderSteps(view) {
   $('steps').innerHTML = MISI.map((m, i) =>
-    `<button class="step ${view === 'misi' && S.i === i ? 'on' : ''} ${S.hasil[i] ? 'done' : ''}" data-go="${i}" title="${m.nama}">${m.k}</button>`
+    `<button class="step ${view === 'misi' && S.i === i ? 'on' : ''} ${S.hasil[i] ? 'done' : ''}" data-go="${i}" title="${m.nama}"${bisa(i) ? '' : ' disabled'}>${m.k}</button>`
   ).join('') + `<button class="step end ${view === 'hasil' ? 'on' : ''}" data-go="hasil">Hasil</button>`;
 }
 
 function mulai(i) {
   stopPlay();
+  if (!bisa(i)) { const j = berikut(i); if (j < 0) return tampilHasil(); i = j; }
   S.i = i;
   const m = MISI[i], d = dat();
   const st = d.start || { cx: .5, cy: .5, f: 24 };
@@ -282,7 +317,7 @@ function mulai(i) {
   $('rot').value = 0;
   if (m.k === 'A') {
     const h = Object.keys(TINGGI);
-    S.brief = h[Math.floor(Math.random() * h.length)];
+    S.brief = d.tebak || h[Math.floor(Math.random() * h.length)];
     const lain = h.filter(x => x !== S.brief);
     S.tinggi = lain[Math.floor(Math.random() * lain.length)];
   }
@@ -296,7 +331,7 @@ function mulai(i) {
   $('ctlRot').hidden = m.k !== 'A';
   $('ctlTinggi').hidden = m.k !== 'A';
   $('ctlWaktu').hidden = m.k !== 'T';
-  $('gantiBrief').hidden = m.k !== 'A';
+  $('gantiBrief').hidden = m.k !== 'A' || !!d.tebak;
   $('diagram').hidden = m.k !== 'A';
   $('dragTip').classList.toggle('off', dragged);
   renderMisiText();
@@ -307,7 +342,7 @@ function mulai(i) {
 function renderMisiText() {
   const m = MISI[S.i];
   const d = dat();
-  $('pMisi').textContent = $('pMisiM').textContent = m.k === 'A' ? d.brief[S.brief] : d.misi;
+  $('pMisi').textContent = $('pMisiM').textContent = m.k === 'A' && !d.tebak ? d.brief[S.brief] : d.misi;
   $('pHurufM').textContent = m.k;
   if (m.k === 'A') {
     $('tinggiSeg').innerHTML = Object.entries(TINGGI).map(([k, a]) =>
@@ -344,6 +379,10 @@ let rafId = 0;
 function render() {
   const fotoEl = $('foto'), want = foto(imgNow()).src;
   if (fotoEl.src !== want) fotoEl.src = want;
+  const r = rasioNow();
+  $('stage').style.setProperty('--r', r);
+  const lcd = $('lcd'), lh = Math.round(lcd.width / r);
+  if (lcd.height !== lh) lcd.height = lh;
   const vf = $('vf');
   vf.style.left = (S.cx - S.w / 2) * 100 + '%';
   vf.style.top = (S.cy - S.w / 2) * 100 + '%';
@@ -398,15 +437,15 @@ function drawLCD() {
 }
 
 function jepret() {
-  if (!$('modal').hidden || $('misi').hidden) return;
+  if (!$('modal').hidden || $('misi').hidden || !foto(imgNow()).naturalWidth) return;
   S.shotPlaying = S.playing;
   stopPlay();
   bunyi();
   const fl = $('flash');
   fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go');
 
-  const c = document.createElement('canvas');
-  c.width = 1200; c.height = 800;
+  const c = document.createElement('canvas'), r = rasioNow();
+  c.width = r >= 1 ? 1200 : 900; c.height = Math.round(c.width / r);
   drawCrop(c.getContext('2d'), c.width, c.height);
   const m = MISI[S.i];
   const res = m.nilai(S, dat());
@@ -419,7 +458,8 @@ function jepret() {
   $('mSkor').textContent = skor;
   $('mCek').innerHTML = res.items.map(cekLi).join('');
   $('mSaran').textContent = res.saran;
-  $('lanjut').textContent = S.i < MISI.length - 1 ? `Lanjut ke ${MISI[S.i + 1].k}` : 'Lihat cerita fotomu';
+  const nx = berikut(S.i);
+  $('lanjut').textContent = nx >= 0 ? `Lanjut ke ${MISI[nx].k}` : 'Lihat cerita fotomu';
   $('modal').hidden = false;
   renderSteps('misi');
   setTimeout(() => $('lanjut').focus(), 50);
@@ -487,23 +527,26 @@ function diagram(h) {
 
 /* ---------- hasil ---------- */
 function totalSkor() {
-  return Math.round(S.hasil.reduce((a, h) => a + (h ? h.skor : 0), 0) / MISI.length);
+  const n = MISI.filter((m, i) => bisa(i)).length;
+  return Math.round(S.hasil.reduce((a, h) => a + (h ? h.skor : 0), 0) / n);
 }
 function tampilHasil() {
   stopPlay();
   const tot = totalSkor();
-  const jml = S.hasil.filter(Boolean).length;
+  const jml = S.hasil.filter(Boolean).length, n = MISI.filter((m, i) => bisa(i)).length;
   $('hSkor').textContent = tot;
-  $('hJudul').textContent = jml < MISI.length ? 'Ceritanya belum lengkap'
+  $('hJudul').textContent = jml < n ? 'Ceritanya belum lengkap'
     : tot >= 85 ? 'Siap liputan!' : tot >= 65 ? 'Sudah bercerita, tinggal dipoles' : 'Ayo latihan lagi';
-  $('hLead').textContent = jml < MISI.length
-    ? `Kamu baru menjepret ${jml} dari 5 huruf. Lengkapi dulu supaya ceritanya utuh.`
+  $('hLead').textContent = jml < n
+    ? `Kamu baru menjepret ${jml} dari ${n} huruf. Lengkapi dulu supaya ceritanya utuh.`
+    : n < MISI.length ? `Semua teknik yang bisa dilatih dari fotomu sudah kamu jepret.`
     : 'Lima foto ini kalau disusun jadi satu cerita: suasana, detail, bingkai, sudut, dan momen puncaknya.';
   $('story').innerHTML = MISI.map((m, i) => {
     const h = S.hasil[i];
     return h
       ? `<figure class="shot ${m.k}" style="margin:0"><img src="${h.img}" alt="Foto ${m.nama}"><span class="tag"><b>${m.k}</b>${m.nama}</span><span class="nil">${h.skor}</span></figure>`
-      : `<button class="shot ${m.k} kosong" data-go="${i}">${m.k} · ${m.nama} belum dijepret</button>`;
+      : bisa(i) ? `<button class="shot ${m.k} kosong" data-go="${i}">${m.k} · ${m.nama} belum dijepret</button>`
+      : `<div class="shot ${m.k} kosong">${m.k} · ${m.nama} tidak bisa dilatih dari foto ini</div>`;
   }).join('');
   const lemah = S.hasil.map((h, i) => [h ? h.skor : -1, i]).sort((a, b) => a[0] - b[0])[0];
   $('hTips').innerHTML = MISI.map((m, i) =>
@@ -599,21 +642,22 @@ function initStage() {
 }
 
 function renderEvent() {
-  const satu = Object.keys(EVENTS).length < 2;
+  const daftar = Object.entries(EVENTS).filter(([, e]) => !e.aktif);
+  const satu = daftar.length < 2;
   $('evPick').hidden = satu;
   document.querySelector('.ev-lbl').hidden = satu;
-  $('evPick').innerHTML = Object.entries(EVENTS).map(([k, e]) =>
+  $('evPick').innerHTML = daftar.map(([k, e]) =>
     `<button class="ev ${S.ev === k ? 'on' : ''}" data-ev="${k}" aria-pressed="${S.ev === k}">
       <img src="img/${e.sampul}.jpg" alt=""><span><b>${e.nama}</b><small>${e.ket}</small></span></button>`
   ).join('');
-  $('demoFoto').style.backgroundImage = `url(img/${ev().sampul}.jpg)`;
+  $('demoFoto').style.backgroundImage = `url(${URLS[ev().sampul] || `img/${ev().sampul}.jpg`})`;
   $('kredit').textContent = ev().kredit + '.';
 }
 function pilihEvent(k) {
   if (k === S.ev) return;
   S.ev = k;
   S.hasil = Array(MISI.length).fill(null);
-  try { localStorage.setItem('edfat_ev', k); } catch (err) { /* tanpa storage */ }
+  if (!EVENTS[k].aktif) try { localStorage.setItem('edfat_ev', k); } catch (err) { /* tanpa storage */ }
   preload();
   renderEvent();
   renderSteps('home');
@@ -632,6 +676,7 @@ function initUI() {
     const v = g.dataset.go;
     $('modal').hidden = true;
     if (v === 'home') { stopPlay(); show('home'); }
+    else if (v === 'analisis') show('analisis');
     else if (v === 'hasil') tampilHasil();
     else mulai(+v);
   });
@@ -658,14 +703,14 @@ function initUI() {
   $('tgGrid').addEventListener('change', e => $('stage').classList.toggle('nogrid', !e.target.checked));
   $('tgHint').addEventListener('change', e => $('stage').classList.toggle('hint', e.target.checked));
   $('shutter').addEventListener('click', jepret);
-  $('lewati').addEventListener('click', () => S.i < MISI.length - 1 ? mulai(S.i + 1) : tampilHasil());
+  $('lewati').addEventListener('click', () => berikut(S.i) >= 0 ? mulai(berikut(S.i)) : tampilHasil());
   $('ulang').addEventListener('click', () => {
     $('modal').hidden = true;
     if (MISI[S.i].k === 'T') startPlay();
   });
   $('lanjut').addEventListener('click', () => {
     $('modal').hidden = true;
-    S.i < MISI.length - 1 ? mulai(S.i + 1) : tampilHasil();
+    berikut(S.i) >= 0 ? mulai(berikut(S.i)) : tampilHasil();
   });
   $('unduh').addEventListener('click', unduh);
 
@@ -686,8 +731,235 @@ function initUI() {
   window.addEventListener('resize', () => { if (!$('misi').hidden) drawLCD(); });
 }
 
+/* ---------- foto referensi kamu (analisis AI) ---------- */
+// URL web app Apps Script "EDFAT Analisis" (server/Code.gs). Kosong = fitur AI belum aktif.
+const AI_URL = 'https://script.google.com/macros/s/AKfycbyZsOcgk_gvLKa_k981ug_FBKirwVd7ktbFEvDAqLULgZNr9KxDILBSU_n89hNtd8b5/exec';
+const MAKS_UNGGAH = 10;
+let unggahan = [];   // [{nama, url, ai, rasio}]
+let analisis = null; // jawaban AI yang sudah dirapikan
+let tugas = 0;       // upload terbaru; jawaban dari upload lama diabaikan
+
+async function siapkanFoto(file, sisiAI) {
+  const bmp = await createImageBitmap(file);
+  const ubah = sisi => {
+    const k = Math.min(1, sisi / Math.max(bmp.width, bmp.height));
+    const c = document.createElement('canvas');
+    c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+    return c;
+  };
+  const tampil = ubah(1800);
+  const blob = await new Promise(r => tampil.toBlob(r, 'image/jpeg', .9));
+  return {
+    nama: file.name,
+    url: URL.createObjectURL(blob),
+    ai: ubah(sisiAI).toDataURL('image/jpeg', .8).split(',')[1],
+    rasio: bmp.width / bmp.height,
+  };
+}
+
+async function unggah(files) {
+  files = [...files].filter(f => /^image\//.test(f.type) || /\.(jpe?g|png|webp|heic)$/i.test(f.name))
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
+    .slice(0, MAKS_UNGGAH);
+  if (!files.length) return;
+  const id = ++tugas;
+  stopPlay();
+  show('analisis');
+  tampilAnalisis('muat', files.length);
+  const baru = [];
+  try {
+    for (const f of files) baru.push(await siapkanFoto(f, files.length > 1 ? 768 : 1280));
+  } catch (err) {
+    if (id === tugas) tampilAnalisis('galat', 'Foto ini tidak bisa dibuka browser. Coba simpan ulang sebagai JPG lalu upload lagi.');
+    return;
+  }
+  if (id !== tugas) return;
+  // object URL lama tetap hidup selama latihan sebelumnya masih bisa dibuka; buang yang bukan milik latihan aktif
+  unggahan.filter(u => !Object.values(URLS).includes(u.url)).forEach(u => URL.revokeObjectURL(u.url));
+  unggahan = baru;
+  $('aFoto').src = unggahan[0].url;
+  if (!AI_URL) return tampilAnalisis('galat', 'Fitur analisis AI belum diaktifkan di simulator ini.');
+  try {
+    const res = await fetch(AI_URL, { method: 'POST', body: JSON.stringify({ foto: unggahan.map(u => u.ai) }) });
+    const data = await res.json();
+    if (id !== tugas) return;
+    if (!data.ok) throw new Error(data.pesan || 'AI gagal membaca foto.');
+    terimaAnalisis(data.hasil);
+  } catch (err) {
+    if (id === tugas) tampilAnalisis('galat', err.message === 'Failed to fetch' ? 'Koneksi ke AI terputus. Cek internet lalu coba lagi.' : err.message);
+  }
+}
+
+// box_2d Gemini = [ymin, xmin, ymax, xmax] skala 0–1000 → [x1, y1, x2, y2] 0–1
+function kotak(o) {
+  const b = o && o.box_2d;
+  if (!Array.isArray(b) || b.length !== 4 || b.some(v => typeof v !== 'number')) return null;
+  const [y1, x1, y2, x2] = b.map(v => clamp(v / 1000, 0, 1));
+  const k = [Math.min(x1, x2), Math.min(y1, y2), Math.max(x1, x2), Math.max(y1, y2)];
+  return k[2] - k[0] > .005 && k[3] - k[1] > .005 ? k : null;
+}
+const daftarKotak = (arr, maks) => (arr || []).map(o => [o.label || 'Objek', kotak(o)]).filter(x => x[1]).slice(0, maks);
+
+function terimaAnalisis(a) {
+  const n = unggahan.length;
+  const utama = clamp(Math.round(a.utama || 0), 0, n - 1);
+  const subj = kotak(a.subjek) || [.3, .3, .7, .7];
+  const subjNama = (a.subjek && a.subjek.label) || 'Subjek';
+  const konteks = daftarKotak(a.konteks, 4).filter(([, b]) => area(b) < .6).slice(0, 3); // kotak seluas foto = tidak berguna
+  const detail = daftarKotak(a.detail, 5).filter(([, b]) => area(b) > .0003);
+  const bingkai = daftarKotak(a.bingkai, 4);
+  const latih = a.latihan || {};
+  const ok = k => !!(latih[k] && latih[k].bisa);
+  const misi = (k, cadangan) => (latih[k] && latih[k].misi) || cadangan;
+
+  // daftarkan foto upload sebagai gambar: u_utama + u_1..u_n (frame burst)
+  const daftar = n > 1 ? unggahan.map((u, i) => ['u_' + (i + 1), u.url]) : [];
+  daftar.push(['u_utama', unggahan[utama].url]);
+  for (const [nama, url] of daftar) { URLS[nama] = url; delete CACHE[nama]; }
+
+  const aktif = ['A'];
+  if (ok('E') || konteks.length) aktif.push('E');
+  if (detail.length) aktif.push('D');
+  if (bingkai.length) aktif.push('F');
+  if (n > 1) aktif.push('T');
+
+  const cx = (subj[0] + subj[2]) / 2, cy = (subj[1] + subj[3]) / 2;
+  const besar = Math.max(subj[2] - subj[0], subj[3] - subj[1]);
+  const fDekat = F_MIN / clamp(besar * 1.25, .3, 1);
+  const fRapat = F_MIN / clamp(besar * 1.02, .25, .9); // F mulai rapat di subjek, bingkai di luar frame
+  const skor = (a.waktu && a.waktu.skor && a.waktu.skor.length === n)
+    ? a.waktu.skor.map(v => clamp(Math.round(v), 0, 100))
+    : unggahan.map((u, i) => Math.max(10, 100 - 25 * Math.abs(i - utama)));
+  const catatan = (a.waktu && a.waktu.catatan && a.waktu.catatan.length === n)
+    ? a.waktu.catatan : unggahan.map((u, i) => i === utama ? 'Ini momen puncaknya.' : 'Belum momen puncaknya.');
+  const pad = (b, p) => [clamp(b[0] - p, 0, 1), clamp(b[1] - p, 0, 1), clamp(b[2] + p, 0, 1), clamp(b[3] + p, 0, 1)];
+
+  EVENTS.kamu = {
+    nama: 'Foto kamu', judul: 'Foto referensiku', ket: '',
+    kredit: 'Foto referensi milik pengguna, dibaca AI (Gemini)',
+    sampul: 'u_utama', aktif,
+    E: {
+      img: 'u_utama', start: { cx, cy, f: Math.max(fDekat, 60) },
+      misi: misi('E', 'Mundur (zoom out) sampai subjek dan suasana sekitarnya masuk semua.'),
+      wajib: [
+        [subjNama, subj, .9, `Jangan potong ${subjNama.toLowerCase()}, dia pusat ceritanya.`],
+        ...konteks.map(([l, b]) => [l, b, .8, `${l} menjelaskan suasananya, masukkan juga ke frame.`]),
+      ],
+      ok: 'Subjek dan suasananya masuk semua. Begitu cara foto Entire bercerita.',
+    },
+    D: {
+      img: 'u_utama', start: { cx: .5, cy: .5, f: 24 },
+      misi: misi('D', 'Cari satu detail kecil yang bercerita lalu zoom sampai detail itu memenuhi frame.'),
+      target: detail,
+    },
+    F: {
+      img: 'u_utama', start: { cx, cy, f: fRapat }, tipe: 'ai',
+      misi: misi('F', 'Lebarkan bingkai sampai elemen di depan kamera ikut membingkai subjek.'),
+      subj: [subjNama, subj], bingkai,
+    },
+    A: {
+      tinggi: { low: { img: 'u_utama', subj }, eye: { img: 'u_utama', subj }, high: { img: 'u_utama', subj } },
+      tebak: a.sudut in TINGGI ? a.sudut : 'eye', alasan: a.sudut_alasan || '', brief: {},
+      misi: 'Foto ini diambil dari posisi kamera mana? Pilih jawabanmu di “Posisi kamera”, bingkai subjeknya, lalu jepret.',
+    },
+    T: {
+      n: Math.max(n, 1), img: i => (n > 1 ? 'u_' + i : 'u_utama'), area: pad(subj, .03),
+      misi: misi('T', 'Foto beruntunmu diputar seperti kejadian asli. Tekan jepret tepat di momen puncaknya.'),
+      skor, note: catatan,
+    },
+  };
+  analisis = { ...a, utama, subj, subjNama, konteks, detail, bingkai, aktif,
+    saran: aktif.includes(a.saran) ? a.saran : (aktif.includes(a.teknik) ? a.teknik : aktif[0]) };
+  $('aFoto').src = unggahan[utama].url;
+  tampilAnalisis('hasil');
+}
+
+function tampilAnalisis(mode, info) {
+  const p = $('aPanel');
+  $('aKotak').innerHTML = '';
+  $('aStrip').innerHTML = '';
+  if (mode === 'muat') {
+    p.innerHTML = `<div class="a-muat"><span class="putar"></span>
+      <p class="eyebrow">Sedang membaca</p><h2>AI lagi melihat fotomu…</h2>
+      <p class="def">${info > 1 ? `${info} foto beruntun` : '1 foto'} sedang dicocokkan dengan teori EDFAT. Biasanya 10–60 detik, foto beruntun lebih lama.</p></div>`;
+    return;
+  }
+  if (mode === 'galat') {
+    p.innerHTML = `<p class="eyebrow">Belum berhasil</p><h2>Fotonya belum terbaca</h2>
+      <p class="def">${esc(info)}</p>
+      <div class="a-cta"><label class="btn primary" for="unggah">Pilih foto lain</label>
+      <button class="btn ghost" data-go="home">Kembali</button></div>`;
+    return;
+  }
+  const a = analisis, nm = k => MISI.find(m => m.k === k).nama;
+  const warna = { subjek: 'var(--teal)', konteks: 'var(--cyan)', detail: 'var(--yellow)', bingkai: '#E58A6B' };
+  const kotakHtml = (jenis, label, b) =>
+    `<span class="ak ${jenis}" style="--c:${warna[jenis]};left:${b[0] * 100}%;top:${b[1] * 100}%;width:${(b[2] - b[0]) * 100}%;height:${(b[3] - b[1]) * 100}%"><em>${esc(label)}</em></span>`;
+  $('aKotak').innerHTML = [
+    ...a.konteks.map(([l, b]) => kotakHtml('konteks', l, b)),
+    ...a.bingkai.map(([l, b]) => kotakHtml('bingkai', l, b)),
+    ...a.detail.map(([l, b]) => kotakHtml('detail', l, b)),
+    kotakHtml('subjek', a.subjNama, a.subj),
+  ].join('');
+  if (unggahan.length > 1) {
+    $('aStrip').innerHTML = unggahan.map((u, i) =>
+      `<img src="${u.url}" alt="Frame ${i + 1}" class="${i === a.utama ? 'puncak' : ''}" title="Frame ${i + 1}: ${esc((EVENTS.kamu.T.note[i] || ''))}">`).join('');
+  }
+  const baris = MISI.map(m => {
+    const on = a.aktif.includes(m.k), saran = m.k === a.saran;
+    const teks = m.k === 'A' ? `Tebak sudut kameranya (${TINGGI[EVENTS.kamu.A.tebak].label.toLowerCase()}?) lalu bingkai subjeknya.`
+      : m.k === 'T' && unggahan.length < 2 ? 'Butuh 2–10 foto beruntun (burst). Upload ulang beberapa foto sekaligus.'
+      : on ? EVENTS.kamu[m.k].misi : 'Foto ini tidak punya bahan untuk latihan ini.';
+    return `<li class="${on ? '' : 'mati'} ${saran ? 'saran' : ''}">
+      <span class="huruf kecil">${m.k}</span>
+      <div><b>${m.nama}${saran ? ' <i>disarankan</i>' : ''}</b><small>${esc(teks)}</small></div>
+      ${on ? `<button class="chip" data-latih="${m.k}">Latih</button>` : ''}</li>`;
+  }).join('');
+  $('aPanel').innerHTML = `
+    <p class="eyebrow">Teknik paling kuat di foto ini</p>
+    <div class="p-head"><span class="huruf">${a.teknik}</span>
+      <div><h2>${nm(a.teknik)}</h2><p class="def">${esc(a.isi || '')}</p></div></div>
+    <p class="a-alasan">${esc(a.alasan || '')}</p>
+    ${(a.ciri || []).length ? `<ul class="ciri">${a.ciri.map(c => `<li>${esc(c)}</li>`).join('')}</ul>` : ''}
+    <p class="tip">Sudut kamera: <b>${TINGGI[EVENTS.kamu.A.tebak].label}</b>${a.miring ? ' + miring (dutch angle)' : ''}. ${esc(a.sudut_alasan || '')}</p>
+    <div class="a-latih"><p class="eyebrow">Latihan dari fotomu</p><ul>${baris}</ul></div>
+    <div class="a-cta">
+      <button class="btn primary" data-latih="${a.saran}">Latih ${nm(a.saran)} sekarang</button>
+      <label class="btn ghost" for="unggah">Foto lain</label>
+    </div>
+    <p class="kecil">Kotak berwarna di foto = yang dibaca AI: <span style="color:var(--teal-dk)">subjek</span>, konteks, detail, bingkai. AI bisa salah, anggap ini pendapat kedua.</p>`;
+}
+
+function latihFotoKamu(k) {
+  S.ev = 'kamu';
+  S.hasil = Array(MISI.length).fill(null);
+  preload();
+  mulai(MISI.findIndex(m => m.k === k));
+}
+
+function esc(t) {
+  return String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function initKamu() {
+  $('unggah').addEventListener('change', e => { unggah(e.target.files); e.target.value = ''; });
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-latih]');
+    if (b) latihFotoKamu(b.dataset.latih);
+  });
+  // seret foto ke halaman
+  document.addEventListener('dragover', e => { if ([...e.dataTransfer.types].includes('Files')) e.preventDefault(); });
+  document.addEventListener('drop', e => {
+    if (!e.dataTransfer.files.length) return;
+    e.preventDefault();
+    unggah(e.dataTransfer.files);
+  });
+}
+
 preload();
 initUI();
+initKamu();
 renderEvent();
 initStage();
 show('home');
