@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=6">
+<link rel="stylesheet" href="app.css?v=9">
 </head>
 <body>
 
@@ -103,8 +103,27 @@
   <footer class="foot"><span id="kredit"></span> Metode EDFAT dikenalkan Frank P. Hoy untuk fotojurnalistik.</footer>
 </main>
 
+<!-- PELAJARAN (satu ide per layar) -->
+<main id="pelajaran" class="view" hidden>
+  <div class="les">
+    <div class="les-top" id="lesTop">
+      <button class="les-x" data-go="home" aria-label="Tutup pelajaran">✕</button>
+      <div class="les-bar" id="lesBar" aria-label="Kemajuan pelajaran"></div>
+      <span class="les-huruf" id="lesHuruf">E</span>
+    </div>
+    <section class="les-isi" id="lesIsi" aria-live="polite"></section>
+  </div>
+  <div class="les-bawah">
+    <div class="les-bawah-in">
+      <div class="les-umpan" id="lesUmpan" role="status"></div>
+      <button class="btn primary les-lanjut" id="lesLanjut">Lanjut</button>
+    </div>
+  </div>
+</main>
+
 <!-- MISI -->
 <main id="misi" class="view" hidden>
+  <div class="les-top mini" id="misiLes" hidden></div>
   <div class="misi-grid">
     <section class="kamera">
       <p class="misi-hp"><b id="pHurufM">E</b><span id="pMisiM"></span></p>
@@ -255,6 +274,6 @@
   </div>
 </div>
 
-<script src="app.js?v=6"></script>
+<script src="app.js?v=8"></script>
 </body>
 </html>

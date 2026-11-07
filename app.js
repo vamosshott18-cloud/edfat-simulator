@@ -302,7 +302,12 @@ function imgNow() {
 function show(id) {
   if (id === 'home' && S.ev !== evDasar) { S.ev = evDasar; S.hasil = HASIL[evDasar]; preload(); renderEvent(); }
   if (id === 'home') renderBeranda();
-  for (const v of ['home', 'misi', 'hasil', 'analisis']) $(v).hidden = v !== id;
+  for (const v of ['home', 'misi', 'hasil', 'analisis', 'pelajaran']) $(v).hidden = v !== id;
+  // mode fokus: selama pelajaran (termasuk kamera di dalamnya) menu atas disembunyikan
+  document.body.classList.toggle('fokus', id === 'pelajaran' || (id === 'misi' && !!S.les));
+  if (id === 'misi' && S.les) $('misiLes').innerHTML = `<button class="les-x" data-go="home" aria-label="Tutup pelajaran">✕</button>
+    <div class="les-bar">${barHtml(3)}</div><span class="les-huruf">${MISI[S.les.i].k}</span>`;
+  $('misiLes').hidden = !(id === 'misi' && S.les);
   window.scrollTo({ top: 0 });
   renderSteps(id);
 }
@@ -312,8 +317,10 @@ function renderSteps(view) {
   ).join('') + `<button class="step end ${view === 'hasil' ? 'on' : ''}" data-go="hasil">Hasil</button>`;
 }
 
-function mulai(i) {
+function mulai(i, les = false) {
   stopPlay();
+  if (!les) S.les = null;
+  else if (S.les) S.les.layar = 3;
   if (!bisa(i)) { const j = berikut(i); if (j < 0) return tampilHasil(); i = j; }
   S.i = i;
   const m = MISI[i], d = dat();
@@ -477,7 +484,7 @@ function jepret() {
   $('mCek').innerHTML = res.items.map(cekLi).join('');
   $('mSaran').textContent = res.saran;
   const nx = berikut(S.i);
-  $('lanjut').textContent = nx >= 0 ? `Lanjut ke ${MISI[nx].k}` : 'Lihat cerita fotomu';
+  $('lanjut').textContent = S.les ? 'Lanjut' : nx >= 0 ? `Lanjut ke ${MISI[nx].k}` : 'Lihat cerita fotomu';
   $('modal').hidden = false;
   renderSteps('misi');
   setTimeout(() => $('lanjut').focus(), 50);
@@ -703,7 +710,7 @@ function renderBeranda() {
             <p class="lk-ex">${m.ex}</p>
           </details>
           <div class="lk-aksi">
-            <button class="btn ${i === next ? 'primary' : 'ghost'} kecil-btn" data-go="${i}">${r ? 'Ulangi' : 'Latih'} ${m.k}</button>
+            <button class="btn ${i === next ? 'primary' : 'ghost'} kecil-btn" data-les="${i}">${r ? 'Ulangi' : 'Mulai'} pelajaran ${m.k}</button>
             ${status}
           </div>
         </div>
@@ -720,7 +727,7 @@ function renderBeranda() {
       <p>${selesai ? `Rata-rata skor ${rata}.` : 'Mulai dari E. Butuh sekitar 10 menit untuk kelimanya.'}</p>
     </div>
     ${next >= 0
-      ? `<button class="btn primary lebar" data-go="${next}">${selesai ? 'Lanjut' : 'Mulai'}: ${MISI[next].k} · ${MISI[next].nama}</button>`
+      ? `<button class="btn primary lebar" data-les="${next}">${selesai ? 'Lanjut' : 'Mulai'}: ${MISI[next].k} · ${MISI[next].nama}</button>`
       : '<button class="btn primary lebar" data-go="hasil">Lihat cerita fotomu</button>'}
     <a class="link" href="#cara">Cara pakai simulator</a>`;
 }
@@ -773,13 +780,15 @@ function initUI() {
   $('tgGrid').addEventListener('change', e => $('stage').classList.toggle('nogrid', !e.target.checked));
   $('tgHint').addEventListener('change', e => $('stage').classList.toggle('hint', e.target.checked));
   $('shutter').addEventListener('click', jepret);
-  $('lewati').addEventListener('click', () => berikut(S.i) >= 0 ? mulai(berikut(S.i)) : tampilHasil());
+  $('lewati').addEventListener('click', () => S.les ? (stopPlay(), keRangkuman())
+    : berikut(S.i) >= 0 ? mulai(berikut(S.i)) : tampilHasil());
   $('ulang').addEventListener('click', () => {
     $('modal').hidden = true;
     if (MISI[S.i].k === 'T') startPlay();
   });
   $('lanjut').addEventListener('click', () => {
     $('modal').hidden = true;
+    if (S.les) return keRangkuman();
     berikut(S.i) >= 0 ? mulai(berikut(S.i)) : tampilHasil();
   });
   $('unduh').addEventListener('click', unduh);
@@ -788,6 +797,11 @@ function initUI() {
 
   document.addEventListener('keydown', e => {
     if (!$('panduan').hidden) { if (e.key === 'Escape') tutupPanduan(); return; }
+    if (!$('pelajaran').hidden) {
+      if (e.key === 'Enter' && !$('lesLanjut').disabled && !e.target.matches('button')) lesLanjut();
+      if (e.key === 'Escape') show('home');
+      return;
+    }
     if ($('misi').hidden || e.target.matches('input, textarea')) return;
     if (!$('modal').hidden) { if (e.key === 'Escape') $('ulang').click(); return; }
     const step = .02;
@@ -1030,9 +1044,203 @@ function initKamu() {
   });
 }
 
+/* ---------- pelajaran per huruf (satu ide per layar) ----------
+   Layar: 0 kenali → 1 tebak → 2 kenapa → 3 coba (kamera) → 4 rangkuman. */
+const LAYAR = ['Kenali', 'Tebak', 'Kenapa', 'Coba', 'Rangkuman'];
+const KENAL = {
+  E: 'Ini foto <b>Entire</b>. Sekali lihat, kamu langsung tahu peristiwanya di mana dan seramai apa. Kotak kuning menandai elemen yang bikin foto ini bercerita.',
+  D: 'Ini foto <b>Detail</b>. Kamera mendekat ke satu benda kecil sampai benda itu jadi pemeran utama. Benda lain dibuang dari frame.',
+  F: 'Ini foto <b>Frame</b>. Ada benda di depan kamera (kotak kuning) yang membingkai subjek, jadi mata langsung tertuju ke dalam.',
+  A: 'Tiga foto ini beda <b>posisi kamera</b>. Posisi kamera mengubah kesan subjek: terlihat kuat, akrab, atau kecil di tengah situasinya.',
+  T: 'Ini foto beruntun dari <b>satu momen</b>, diambil dalam waktu kurang dari dua detik. Cuma satu frame yang paling dramatis.',
+};
+const SOAL = {
+  E: 'Mana yang termasuk foto Entire?',
+  D: 'Mana yang termasuk foto Detail?',
+  F: 'Mana yang memakai teknik Frame?',
+  A: 'Foto mana yang diambil dari posisi tinggi (high angle)?',
+  T: 'Frame mana yang paling pas disebut momen puncak?',
+};
+const BENAR = {
+  E: 'Betul! Foto ini memperlihatkan lokasi dan suasana secara utuh.',
+  D: 'Betul! Satu benda kecil memenuhi frame, tanpa gangguan lain.',
+  F: 'Betul! Benda di depan kamera membingkai subjek di dalamnya.',
+  A: 'Betul! Kamera di atas subjek, jadi pola dan situasinya terbaca.',
+  T: 'Betul! Ini titik paling dramatis dari seluruh rangkaian.',
+};
+const CIRI = {
+  E: [['Lensa lebar', '16–35 mm, atau mundur beberapa langkah.'], ['Ada konteks', 'Lokasi, keramaian, papan nama, cuaca.'], ['Foto pembuka', 'Biasanya jadi foto pertama dalam cerita.']],
+  D: [['Satu fokus', 'Satu benda saja, yang lain dibuang dari frame.'], ['Dekat', 'Lensa panjang (70–200 mm) atau mendekat.'], ['Ikut bercerita', 'Pilih benda yang menjelaskan peristiwa: alat, tangan, ekspresi.']],
+  F: [['Ada elemen depan', 'Pintu, jaring, daun, orang, atau benda blur.'], ['Di pinggir frame', 'Elemen depan menyentuh tepi, bukan menutupi tengah.'], ['Subjek tetap jelas', 'Bingkai boleh blur, subjek harus utuh.']],
+  A: [['Rendah = kuat', 'Kamera di bawah mata subjek, dia terlihat gagah.'], ['Sejajar = akrab', 'Setinggi mata subjek, terasa natural.'], ['Tinggi = pola', 'Dari atas, subjek kecil dan situasinya terbaca.']],
+  T: [['Antisipasi', 'Baca polanya, tekan sedikit sebelum puncak.'], ['Pakai burst', 'Foto beruntun memberi banyak pilihan frame.'], ['Rana cepat', '1/1000 detik atau lebih cepat untuk membekukan aksi.']],
+};
+const URUT = { E: [1, 0, 2], D: [0, 2, 1], F: [2, 0, 1], A: [1, 2, 0], T: [2, 1, 0] }; // posisi jawaban diacak tetap
+
+// kotak dilebarkan jadi rasio foto (lebar = tinggi dalam koordinat ternormalisasi)
+function potong(b, pad = 1.25) {
+  const w = clamp(Math.max(b[2] - b[0], b[3] - b[1]) * pad, .12, 1);
+  const x = clamp((b[0] + b[2]) / 2 - w / 2, 0, 1 - w), y = clamp((b[1] + b[3]) / 2 - w / 2, 0, 1 - w);
+  return [x, y, x + w, y + w];
+}
+function gambarHtml(img, kotak, kelas = '') {
+  if (!kotak) return `<div class="lf ${kelas}" style="background-image:url(${srcGambar(img)})"></div>`;
+  const w = kotak[2] - kotak[0];
+  const px = w >= 1 ? 0 : kotak[0] / (1 - w) * 100, py = w >= 1 ? 0 : kotak[1] / (1 - w) * 100;
+  return `<div class="lf ${kelas}" style="background-image:url(${srcGambar(img)});background-size:${100 / w}% auto;background-position:${px}% ${py}%"></div>`;
+}
+const tandai = list => list.map(([l, b]) =>
+  `<span class="ak${b[0] > .6 ? ' kanan' : ''}" style="--c:var(--yellow);left:${b[0] * 100}%;top:${b[1] * 100}%;width:${(b[2] - b[0]) * 100}%;height:${(b[3] - b[1]) * 100}%"><em>${esc(l)}</em></span>`).join('');
+
+function opsiTebak(k) {
+  const e = ev(), T = e.T, puncak = T.skor.indexOf(Math.max(...T.skor)) + 1;
+  const dCrop = i => potong((e.D.target[i] || e.D.target[0])[1]);
+  const o = {
+    E: [
+      { img: e.E.img, benar: true },
+      { img: e.D.img, kotak: dCrop(0), why: 'Ini foto Detail: terlalu dekat, lokasi dan suasananya nggak kelihatan.' },
+      { img: T.img(puncak), kotak: potong(T.area, 1.05), why: 'Ini foto momen (Time). Fokusnya aksi, bukan suasana tempatnya.' },
+    ],
+    D: [
+      { img: e.D.img, kotak: dCrop(1), benar: true },
+      { img: e.E.img, why: 'Ini foto Entire: banyak hal di frame, belum ada satu fokus.' },
+      { img: e.A.tinggi.eye.img, why: 'Masih banyak orang dan benda di frame. Detail itu satu benda saja.' },
+    ],
+    F: [
+      { img: e.F.img, benar: true },
+      { img: e.A.tinggi.eye.img, why: 'Tidak ada benda di depan kamera yang membingkai subjek.' },
+      { img: e.D.img, kotak: dCrop(0), why: 'Ini Detail: dekat ke satu benda, tanpa bingkai di depan.' },
+    ],
+    A: [
+      { img: e.A.tinggi.high.img, benar: true },
+      { img: e.A.tinggi.low.img, why: 'Ini dari posisi rendah: subjek terlihat besar dan gagah.' },
+      { img: e.A.tinggi.eye.img, why: 'Ini sejajar mata: terasa natural, bukan dari atas.' },
+    ],
+    T: [
+      { img: T.img(puncak), benar: true },
+      { img: T.img(1), why: `Terlalu cepat. ${T.note[0]}` },
+      { img: T.img(puncak > 3 ? puncak - 3 : T.n), why: `Belum pas. ${T.note[(puncak > 3 ? puncak - 3 : T.n) - 1]}` },
+    ],
+  }[k];
+  return URUT[k].map(n => o[n]);
+}
+
+function mulaiPelajaran(i) {
+  stopPlay();
+  $('modal').hidden = true;
+  S.les = { i, layar: 0, pilih: -1, benar: false };
+  tampilLayar();
+}
+function tampilLayar() {
+  const L = S.les, m = MISI[L.i], k = m.k, e = ev();
+  $('lesHuruf').textContent = k;
+  $('lesBar').innerHTML = barHtml(L.layar === 4 ? 5 : L.layar);
+  $('lesUmpan').className = 'les-umpan';
+  $('lesUmpan').innerHTML = '';
+  const btn = $('lesLanjut');
+  btn.disabled = false;
+  btn.textContent = 'Lanjut';
+  let html = `<p class="eyebrow">${m.nama} · ${LAYAR[L.layar]}</p>`;
+
+  if (L.layar === 0) {
+    let vis;
+    if (k === 'A') vis = `<div class="lf-tiga">${['low', 'eye', 'high'].map(h =>
+      `<figure>${gambarHtml(e.A.tinggi[h].img)}<figcaption>${TINGGI[h].label}</figcaption></figure>`).join('')}</div>`;
+    else if (k === 'T') vis = `<div class="lf-strip">${Array.from({ length: e.T.n }, (x, j) => gambarHtml(e.T.img(j + 1), null, 'kecil')).join('')}</div>`;
+    else if (k === 'D') vis = `<div class="lf-bingkai">${gambarHtml(e.D.img, potong(e.D.target[0][1]))}</div>
+      <p class="les-cap">Hasil zoom ke <b>${esc(e.D.target[0][0].toLowerCase())}</b> dari foto event.</p>`;
+    else {
+      const list = k === 'E' ? e.E.wajib.map(w => [w[0], w[1]]) : e.F.bingkai;
+      vis = `<div class="lf-bingkai">${gambarHtml(e[k].img)}<div class="a-kotak">${tandai(list)}</div></div>`;
+    }
+    html += `<h2>${m.judul}</h2>${vis}<p class="les-teks">${KENAL[k]}</p>`;
+  } else if (L.layar === 1) {
+    const opsi = opsiTebak(k);
+    L.opsi = opsi;
+    html += `<h2>${SOAL[k]}</h2><div class="les-opsi">${opsi.map((o, j) =>
+      `<button class="opsi ${L.pilih === j ? (o.benar ? 'benar' : 'salah') : ''}" data-opsi="${j}" ${L.benar ? 'disabled' : ''}>
+        ${gambarHtml(o.img, o.kotak)}<span class="opsi-no">${'ABC'[j]}</span></button>`).join('')}</div>`;
+    btn.disabled = !L.benar;
+    btn.textContent = L.benar ? 'Lanjut' : 'Pilih satu foto';
+    if (L.pilih >= 0) umpan(L.opsi[L.pilih].benar ? BENAR[k] : `Belum tepat. ${L.opsi[L.pilih].why} Coba lagi.`, L.opsi[L.pilih].benar);
+  } else if (L.layar === 2) {
+    html += `<h2>Ciri foto ${m.nama}</h2><p class="les-teks">${m.def}</p>
+      <ol class="les-ciri">${CIRI[k].map(([j, t], n) => `<li><b>${n + 1}</b><div><strong>${j}</strong><span>${t}</span></div></li>`).join('')}</ol>`;
+  } else if (L.layar === 3) {
+    html += `<h2>Sekarang giliranmu</h2>
+      <div class="les-misi"><p class="eyebrow">Misi</p><p>${esc(k === 'A' && !dat0(k).tebak ? 'Posisi kamera akan dipilihkan acak. Ikuti misinya.' : dat0(k).misi)}</p></div>
+      <p class="les-teks">Kamu akan memegang kamera virtual. Seret foto untuk menggeser bingkai, geser <b>Lensa</b> untuk zoom, lalu tekan tombol bulat untuk jepret.</p>`;
+    btn.textContent = 'Buka kamera';
+  } else {
+    const r = S.hasil[L.i], nx = L.i < MISI.length - 1 ? L.i + 1 : -1;
+    html += r
+      ? `<h2>${r.skor >= 85 ? 'Mantap, kamu lulus!' : r.skor >= 60 ? 'Lumayan, hampir!' : 'Belum kena, tapi sudah belajar.'}</h2>
+        <div class="les-hasil"><img src="${r.img}" alt="Jepretanmu"><div class="cincin" style="--p:${r.skor / 100}"><span><b>${r.skor}</b></span></div></div>`
+      : `<h2>Kamera dilewati</h2><p class="les-teks">Kamu bisa kembali mencoba kapan saja dari beranda.</p>`;
+    html += `<p class="les-teks">${m.pelajaran}</p>
+      <button class="link" id="lesUlang">Coba kamera lagi</button>`;
+    btn.textContent = nx >= 0 ? `Lanjut ke ${MISI[nx].k} · ${MISI[nx].nama}` : 'Lihat cerita fotomu';
+  }
+  $('lesIsi').innerHTML = html;
+  show('pelajaran');
+}
+const dat0 = k => ev()[k];
+const barHtml = layar => LAYAR.map((n, j) => `<i class="${j < layar ? 'isi' : j === layar ? 'kini' : ''}" title="${n}"></i>`).join('');
+function umpan(teks, ok) {
+  $('lesUmpan').className = 'les-umpan ' + (ok ? 'ok' : 'salah');
+  $('lesUmpan').textContent = teks;
+}
+function lesLanjut() {
+  const L = S.les;
+  if (!L) return;
+  if (L.layar === 1 && !L.benar) return;
+  if (L.layar === 3) return mulai(L.i, true);
+  if (L.layar === 4) {
+    const nx = L.i < MISI.length - 1 ? L.i + 1 : -1;
+    S.les = null;
+    return nx >= 0 ? mulaiPelajaran(nx) : tampilHasil();
+  }
+  L.layar++;
+  tampilLayar();
+}
+function keRangkuman() {
+  $('modal').hidden = true;
+  S.les.layar = 4;
+  tampilLayar();
+}
+function initPelajaran() {
+  $('lesLanjut').addEventListener('click', lesLanjut);
+  $('lesIsi').addEventListener('click', e => {
+    const o = e.target.closest('[data-opsi]');
+    if (o && !S.les.benar) {
+      S.les.pilih = +o.dataset.opsi;
+      S.les.benar = !!S.les.opsi[S.les.pilih].benar;
+      if (S.les.benar) bunyiBenar();
+      tampilLayar();
+    }
+    if (e.target.closest('#lesUlang')) mulai(S.les.i, true);
+  });
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-les]');
+    if (b) mulaiPelajaran(+b.dataset.les);
+  });
+}
+function bunyiBenar() {
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    [660, 880].forEach((f, n) => {
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.frequency.value = f; g.gain.setValueAtTime(.12, actx.currentTime + n * .09);
+      g.gain.exponentialRampToValueAtTime(.001, actx.currentTime + n * .09 + .25);
+      o.connect(g).connect(actx.destination); o.start(actx.currentTime + n * .09); o.stop(actx.currentTime + n * .09 + .26);
+    });
+  } catch (err) { /* tanpa suara */ }
+}
+
 preload();
 initUI();
 initKamu();
+initPelajaran();
 renderEvent();
 initStage();
 show('home');

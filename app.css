@@ -342,6 +342,72 @@ input[type=checkbox] { accent-color: var(--teal); width: 18px; height: 18px; }
 .m-cta { display: flex; gap: 10px; margin-top: auto; }
 .m-cta .btn { flex: 1; }
 
+/* ---------- pelajaran ---------- */
+body.fokus .top { display: none; }
+#pelajaran { min-height: 100vh; display: flex; flex-direction: column; }
+.les { width: min(680px, 100%); margin: 0 auto; padding: 16px 16px 140px; flex: 1; }
+.les-top { display: flex; align-items: center; gap: 14px; padding: 6px 0 18px; }
+.les-top.mini { max-width: 1400px; margin: 0 auto; padding: 0 0 12px; }
+.les-x { width: 40px; height: 40px; border-radius: 50%; border: 0; background: none; font-size: 20px; color: var(--ink-2); flex: none; }
+.les-x:hover { background: var(--pale); }
+.les-bar { flex: 1; display: grid; grid-auto-flow: column; gap: 6px; }
+.les-bar i { height: 10px; border-radius: 999px; background: var(--line); }
+.les-bar i.isi { background: var(--teal); }
+.les-bar i.kini { background: linear-gradient(90deg, var(--teal) 40%, var(--line) 40%); }
+.les-huruf {
+  width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; flex: none;
+  background: var(--pale); color: var(--teal-dk); font-family: var(--serif); font-size: 22px;
+}
+.les-isi { display: flex; flex-direction: column; gap: 16px; animation: masuk .35s ease-out; }
+@keyframes masuk { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
+.les-isi h2 { font-size: clamp(26px, 4vw, 34px); }
+.les-teks { margin: 0; font-size: 17px; line-height: 1.6; }
+.les-cap { margin: -6px 0 0; font-size: 13px; color: var(--ink-2); text-align: center; }
+.lf { aspect-ratio: 3/2; width: 100%; border-radius: 16px; background: #0d1d1e center/cover no-repeat; }
+.lf.kecil { border-radius: 8px; }
+.lf-bingkai { position: relative; border-radius: 16px; overflow: hidden; box-shadow: var(--shadow); }
+.lf-bingkai .lf { border-radius: 0; }
+.lf-tiga { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.lf-tiga figure { margin: 0; }
+.lf-tiga figcaption { text-align: center; font-size: 13px; font-weight: 700; color: var(--teal-dk); margin-top: 6px; }
+.lf-strip { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.les-opsi { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.opsi {
+  position: relative; padding: 0; border: 3px solid var(--line); border-radius: 18px; overflow: hidden;
+  background: var(--card); transition: transform .12s, border-color .15s;
+}
+.opsi:not([disabled]):hover { transform: translateY(-2px); border-color: var(--teal); }
+.opsi .lf { border-radius: 0; }
+.opsi.benar { border-color: var(--green-tx); box-shadow: 0 0 0 4px var(--green); }
+.opsi.salah { border-color: var(--bad); animation: geleng .35s; }
+@keyframes geleng { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+.opsi-no {
+  position: absolute; left: 8px; top: 8px; width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center;
+  background: rgba(255, 255, 255, .92); font-weight: 800; font-size: 14px;
+}
+.les-ciri { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.les-ciri li { display: flex; gap: 14px; align-items: flex-start; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px; }
+.les-ciri li > b { flex: none; width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: var(--pale); color: var(--teal-dk); }
+.les-ciri strong { display: block; font-size: 16px; }
+.les-ciri span { font-size: 14px; color: var(--ink-2); }
+.les-misi { background: var(--pale); border-radius: 16px; padding: 14px 16px; }
+.les-misi p:last-child { margin: 4px 0 0; font-weight: 700; font-size: 17px; }
+.les-hasil { display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: center; }
+.les-hasil img { width: 100%; border-radius: 16px; box-shadow: var(--shadow); }
+.les-bawah {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+  background: var(--card); border-top: 1px solid var(--line);
+  padding: 14px 16px max(14px, env(safe-area-inset-bottom));
+}
+.les-bawah-in { width: min(680px, 100%); margin: 0 auto; display: grid; gap: 10px; }
+.les-umpan:empty { display: none; }
+.les-umpan { border-radius: 14px; padding: 12px 14px; font-weight: 700; font-size: 15px; animation: naik .25s ease-out; }
+.les-umpan.ok { background: var(--green); color: var(--ink); }
+.les-umpan.salah { background: #FBE3DD; color: #7A2414; }
+@keyframes naik { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.les-lanjut { width: 100%; min-height: 54px; font-size: 17px; }
+.les-lanjut:disabled { background: var(--line); color: var(--ink-2); box-shadow: none; cursor: not-allowed; }
+
 /* ---------- panduan ---------- */
 .p-head .tanya {
   margin-left: auto; align-self: flex-start; flex: none; width: 34px; height: 34px; border-radius: 50%;
@@ -424,6 +490,7 @@ label.btn { cursor: pointer; }
   background: var(--c); color: var(--ink); padding: 4px 6px; border-radius: 4px; max-width: 220px; overflow: hidden; text-overflow: ellipsis;
 }
 .ak.subjek { border-width: 3px; }
+.ak.kanan em { left: auto; right: -2px; }
 @keyframes muncul { from { opacity: 0; transform: scale(1.04); } to { opacity: 1; transform: none; } }
 .a-strip { display: flex; gap: 6px; margin-top: 10px; overflow-x: auto; }
 .a-strip img { height: 56px; border-radius: 8px; opacity: .65; border: 2px solid transparent; }
@@ -470,6 +537,10 @@ label.btn { cursor: pointer; }
   .ref { grid-template-columns: 1fr; gap: 20px; }
 }
 @media (max-width: 760px) {
+  .les-opsi { grid-template-columns: 1fr; }
+  .opsi .lf { aspect-ratio: 3/1.6; }
+  .les-teks { font-size: 16px; }
+  .les-top.mini { padding: 8px 12px 8px; }
   .ref-teks > :not(.blok-head) { margin-left: 0; }
   .sambut { grid-template-columns: 1fr; gap: 24px; padding: 24px 0 24px; }
   .lk { grid-template-columns: 44px 1fr; gap: 12px; }
@@ -496,7 +567,7 @@ label.btn { cursor: pointer; }
   .panel { border-radius: 22px 22px 0 0; border-bottom: 0; padding-bottom: 8px; }
   .shoot-row {
     position: sticky; bottom: 0; background: var(--card);
-    padding: 10px 20px max(10px, env(safe-area-inset-bottom)); margin: 0 -20px -8px;
+    padding: 10px 16px max(10px, env(safe-area-inset-bottom)); margin: 0 -16px -8px;
     border-top: 1px solid var(--line);
   }
   .sheet { grid-template-columns: 1fr; }
