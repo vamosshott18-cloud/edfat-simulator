@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="app.css?v=6">
 </head>
 <body>
 
@@ -23,37 +23,69 @@
 
 <!-- BERANDA -->
 <main id="home" class="view">
-  <section class="hero">
-    <div class="hero-text">
-      <p class="eyebrow">Latihan fotografi cerita</p>
-      <h1>Satu peristiwa,<br>lima foto yang bercerita.</h1>
-      <p class="lead">EDFAT adalah cara memotret satu peristiwa dari lima sudut pandang: <b>Entire</b>, <b>Detail</b>, <b>Frame</b>, <b>Angle</b>, <b>Time</b>. Di simulator ini kamu memegang “kamera virtual” di atas foto asli dari sebuah event, lalu menjepret sesuai misi tiap huruf.</p>
+  <section class="sambut">
+    <div class="sambut-teks">
+      <p class="eyebrow">Latihan fotografi cerita · untuk pemula</p>
+      <h1>Belajar EDFAT,<br>langsung praktik.</h1>
+      <p class="lead">EDFAT adalah lima teknik untuk menceritakan satu peristiwa lewat foto. Pelajari urutannya dari <b>E</b> sampai <b>T</b>, lalu coba sendiri pakai kamera virtual di atas foto asli.</p>
       <p class="eyebrow ev-lbl">Pilih event</p>
       <div class="ev-pick" id="evPick"></div>
-      <div class="hero-cta">
-        <button class="btn primary" data-go="0">Mulai simulasi</button>
-        <a class="btn ghost" href="#ref">Pakai fotomu sendiri</a>
-      </div>
     </div>
-    <div class="hero-demo" aria-hidden="true">
-      <div class="demo-photo" id="demoFoto">
-        <div class="demo-vf"><span></span></div>
-      </div>
-      <div class="demo-cap"><b>Geser</b> jendela kamera · <b>zoom</b> lensa · <b>jepret</b></div>
-    </div>
+    <aside class="progres" id="progres" aria-live="polite"></aside>
   </section>
 
-  <section id="teori" class="teori">
-    <h2>Lima huruf, lima tugas</h2>
-    <p class="sub">Metode ini dikenalkan Frank P. Hoy untuk fotojurnalistik. Tujuannya supaya pemula nggak cuma pulang bawa satu jenis foto, tapi satu set foto yang lengkap ceritanya.</p>
-    <div class="cards" id="teoriCards"></div>
+  <section class="blok" id="teori">
+    <div class="blok-head">
+      <span class="blok-no">1</span>
+      <div>
+        <h2>Urutan belajar EDFAT</h2>
+        <p class="sub">Ikuti dari atas ke bawah. Urutannya dari yang paling lebar (suasana) ke yang paling menantang (momen). Tiap langkah punya penjelasan singkat dan satu misi latihan.</p>
+      </div>
+    </div>
+    <ol class="jalur" id="jalur"></ol>
   </section>
 
-  <section class="ref" id="ref">
+  <section class="blok" id="cara">
+    <div class="blok-head">
+      <span class="blok-no">2</span>
+      <div>
+        <h2>Cara pakai simulator</h2>
+        <p class="sub">Empat langkah ini sama untuk semua teknik.</p>
+      </div>
+    </div>
+    <ol class="cara-grid">
+      <li>
+        <span class="cara-ikon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg></span>
+        <b>1. Baca misinya</b>
+        <p>Tiap teknik punya satu misi. Bacanya di kotak hijau muda di samping (di HP: di atas foto).</p>
+      </li>
+      <li>
+        <div class="demo-photo" id="demoFoto" aria-hidden="true"><div class="demo-vf"></div></div>
+        <b>2. Atur kamera</b>
+        <p><b>Seret</b> foto untuk menggeser bingkai kamera. Geser slider <b>Lensa</b> (atau scroll / cubit layar) untuk zoom.</p>
+      </li>
+      <li>
+        <span class="cara-ikon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5l4 4L19 7"/></svg></span>
+        <b>3. Cek ceklisnya</b>
+        <p>Lingkaran berubah <b>hijau</b> kalau syaratnya terpenuhi. Angka di samping tombol jepret adalah perkiraan skormu.</p>
+      </li>
+      <li>
+        <span class="cara-ikon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="3"/><path d="M8 7l1.5-3h5L16 7"/><circle cx="12" cy="13.5" r="3.5"/></svg></span>
+        <b>4. Jepret</b>
+        <p>Tekan tombol bulat (atau <kbd>spasi</kbd>). Kamu dapat skor dan saran, lalu lanjut ke huruf berikutnya. Di akhir, semua jepretan jadi satu cerita foto.</p>
+      </li>
+    </ol>
+  </section>
+
+  <section class="blok ref" id="ref">
     <div class="ref-teks">
-      <p class="eyebrow">Pakai fotomu sendiri</p>
-      <h2>Punya foto referensi?</h2>
-      <p class="sub">Upload foto yang kamu suka, entah karyamu atau foto orang lain yang ingin kamu tiru. AI membaca foto itu masuk teknik EDFAT yang mana dan menjelaskan kenapa. Setelah itu fotonya langsung jadi bahan latihanmu di kamera virtual.</p>
+      <div class="blok-head">
+        <span class="blok-no">3</span>
+        <div>
+          <h2>Pakai fotomu sendiri</h2>
+          <p class="sub">Sudah paham kelima teknik? Upload foto yang kamu suka, entah karyamu atau foto orang lain yang ingin kamu tiru. AI membaca foto itu masuk teknik EDFAT yang mana, lalu fotonya langsung jadi bahan latihanmu.</p>
+        </div>
+      </div>
       <ul class="ref-poin">
         <li><b>1 foto</b> untuk latihan Entire, Detail, Frame, dan Angle (sesuai isi fotonya).</li>
         <li><b>2–10 foto beruntun</b> (burst satu momen) supaya bisa latihan Time juga.</li>
@@ -68,18 +100,7 @@
     </ol>
   </section>
 
-  <section class="cara">
-    <h2>Cara main</h2>
-    <ol>
-      <li><b>Baca misinya</b> di panel kanan (di HP: di bawah foto).</li>
-      <li><b>Atur kamera</b>: seret foto untuk menggeser bingkai, pakai slider lensa (atau scroll/pinch) untuk zoom.</li>
-      <li><b>Lihat ceklisnya</b>. Hijau artinya syarat sudah terpenuhi.</li>
-      <li><b>Jepret</b> (tombol bulat atau tombol spasi). Kamu dapat skor dan masukan, lalu lanjut ke huruf berikutnya.</li>
-      <li>Di akhir, lima jepretanmu disusun jadi <b>satu cerita foto</b> yang bisa diunduh.</li>
-    </ol>
-  </section>
-
-  <footer class="foot" id="kredit"></footer>
+  <footer class="foot"><span id="kredit"></span> Metode EDFAT dikenalkan Frank P. Hoy untuk fotojurnalistik.</footer>
 </main>
 
 <!-- MISI -->
@@ -137,6 +158,7 @@
           <p class="eyebrow" id="pNama">Entire</p>
           <h2 id="pJudul">Foto pembuka</h2>
         </div>
+        <button class="tanya" id="bukaPanduan" aria-label="Cara pakai" title="Cara pakai">?</button>
       </div>
       <p class="def" id="pDef"></p>
       <div class="brief">
@@ -195,6 +217,22 @@
 
 <input type="file" id="unggah" accept="image/*" multiple hidden>
 
+<!-- PANDUAN SINGKAT (muncul sekali) -->
+<div class="modal" id="panduan" hidden>
+  <div class="sheet panduan" role="dialog" aria-modal="true" aria-labelledby="pdJudul">
+    <p class="eyebrow">Sebelum mulai</p>
+    <h3 id="pdJudul">Cara pakai kamera virtual</h3>
+    <ol class="pd-list">
+      <li><b>1</b><div><strong>Seret foto</strong><span>Kotak putih adalah bingkai kameramu. Seret fotonya untuk menggeser bingkai.</span></div></li>
+      <li><b>2</b><div><strong>Zoom pakai Lensa</strong><span>Geser slider Lensa (atau scroll / cubit layar). Angka mm kecil = lebar, besar = dekat.</span></div></li>
+      <li><b>3</b><div><strong>Ikuti ceklis</strong><span>Lingkaran hijau artinya syarat misi terpenuhi.</span></div></li>
+      <li><b>4</b><div><strong>Jepret</strong><span>Tekan tombol bulat. Kamu dapat skor dan saran.</span></div></li>
+    </ol>
+    <button class="btn primary lebar" id="tutupPanduan">Siap, mulai</button>
+    <p class="kecil">Panduan ini bisa dibuka lagi lewat tombol <b>?</b> di panel misi.</p>
+  </div>
+</div>
+
 <!-- HASIL JEPRET -->
 <div class="modal" id="modal" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="mJudul">
@@ -217,6 +255,6 @@
   </div>
 </div>
 
-<script src="app.js"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>

@@ -85,7 +85,7 @@ const EVENTS = {
 
 const MISI = [
   {
-    k: 'E', nama: 'Entire', judul: 'Foto pembuka',
+    k: 'E', inti: 'Tunjukkan di mana dan ada apa, dengan satu foto lebar.', nama: 'Entire', judul: 'Foto pembuka',
     def: 'Foto lebar yang menunjukkan peristiwa secara utuh: di mana, ada apa, dan suasananya seperti apa. Biasanya jadi foto pertama dalam cerita.',
     tip: 'Pakai lensa lebar (16–35 mm) atau mundur. Cari elemen yang menjelaskan lokasi: papan nama, logo, penonton.',
     ex: 'Contoh: seluruh arena + penonton + papan nama.',
@@ -104,7 +104,7 @@ const MISI = [
     },
   },
   {
-    k: 'D', nama: 'Detail', judul: 'Bagian kecil yang bercerita',
+    k: 'D', inti: 'Dekati satu benda kecil yang ikut bercerita.', nama: 'Detail', judul: 'Bagian kecil yang bercerita',
     def: 'Foto dekat pada satu bagian penting: tangan, alat, ekspresi, atau benda kecil yang memperkuat cerita dan sering terlewat kalau cuma dilihat sekilas.',
     tip: 'Pakai lensa panjang (70–200 mm) atau mendekat. Satu detail saja per foto, buang yang lain dari frame.',
     ex: 'Contoh: dayung, ikat kepala, tangan, sepatu.',
@@ -135,7 +135,7 @@ const MISI = [
     },
   },
   {
-    k: 'F', nama: 'Frame', judul: 'Bingkai di depan subjek',
+    k: 'F', inti: 'Bingkai subjek dengan benda di depan kamera.', nama: 'Frame', judul: 'Bingkai di depan subjek',
     def: 'Memakai elemen di depan kamera (jaring, tiang, pintu, daun, orang) sebagai bingkai alami, supaya mata penonton langsung diarahkan ke subjek dan foto terasa punya kedalaman.',
     tip: 'Biarkan elemen depan menyentuh pinggir frame. Bingkainya boleh blur, subjeknya yang harus tajam.',
     ex: 'Contoh: memotret lewat jaring, pagar, atau celah tenda.',
@@ -186,7 +186,7 @@ const MISI = [
     },
   },
   {
-    k: 'A', nama: 'Angle', judul: 'Sudut pandang kamera',
+    k: 'A', inti: 'Pilih posisi kamera: dari bawah, sejajar, atau dari atas.', nama: 'Angle', judul: 'Sudut pandang kamera',
     def: 'Posisi kamera terhadap subjek: rendah (low angle), sejajar mata (eye level), atau tinggi (high angle). Kemiringan kamera (dutch angle) juga termasuk. Tiap sudut memberi kesan yang berbeda.',
     tip: 'Sebelum motret, tanya dulu: subjek ini mau terlihat kuat, akrab, atau kecil di tengah situasinya? Lalu pilih tinggi kamera.',
     ex: 'Contoh: jongkok (low), berdiri (eye), dari jembatan atau tribun (high).',
@@ -210,7 +210,7 @@ const MISI = [
     },
   },
   {
-    k: 'T', nama: 'Time', judul: 'Momen yang tepat',
+    k: 'T', inti: 'Tekan tombol tepat di momen puncak.', nama: 'Time', judul: 'Momen yang tepat',
     def: 'Soal waktu: kapan kamu menekan tombol (momen puncak) dan berapa lama rana terbuka (beku atau blur). Di olahraga, satu detik bisa berisi 5–10 momen berbeda.',
     tip: 'Antisipasi: perhatikan polanya dulu, lalu tekan sedikit SEBELUM puncaknya. Fotografer olahraga biasanya pakai burst + 1/1000 detik atau lebih cepat.',
     ex: 'Contoh: cipratan air, bola tepat kena raket, senyum paling lebar.',
@@ -256,10 +256,13 @@ const S = {
   frame: 1, playing: false, fps: 3, hold: 0, shotPlaying: false,
   hasil: Array(MISI.length).fill(null),
 };
+const HASIL = {};        // hasil jepretan disimpan per event, supaya pindah event tidak menghapus
+let evDasar = S.ev;      // event bawaan beranda (bukan 'kamu')
 let timer = null, dragged = false;
 const ev = () => EVENTS[S.ev];
 const dat = () => ev()[MISI[S.i].k];
-try { const e = localStorage.getItem('edfat_ev'); if (EVENTS[e]) S.ev = e; } catch (err) { /* tanpa storage */ }
+try { const e = localStorage.getItem('edfat_ev'); if (EVENTS[e]) S.ev = evDasar = e; } catch (err) { /* tanpa storage */ }
+HASIL[S.ev] = S.hasil;
 
 /* ---------- gambar ---------- */
 const CACHE = {}, URLS = {}; // URLS: foto upload (object URL) per nama
@@ -297,6 +300,8 @@ function imgNow() {
 
 /* ---------- view ---------- */
 function show(id) {
+  if (id === 'home' && S.ev !== evDasar) { S.ev = evDasar; S.hasil = HASIL[evDasar]; preload(); renderEvent(); }
+  if (id === 'home') renderBeranda();
   for (const v of ['home', 'misi', 'hasil', 'analisis']) $(v).hidden = v !== id;
   window.scrollTo({ top: 0 });
   renderSteps(id);
@@ -338,6 +343,19 @@ function mulai(i) {
   renderHints();
   show('misi');
   render();
+  let sudah = false;
+  try { sudah = localStorage.getItem('edfat_panduan') === '1'; } catch (err) { /* tanpa storage */ }
+  if (!sudah) bukaPanduan();
+}
+function bukaPanduan() {
+  stopPlay();
+  $('panduan').hidden = false;
+  setTimeout(() => $('tutupPanduan').focus(), 50);
+}
+function tutupPanduan() {
+  $('panduan').hidden = true;
+  try { localStorage.setItem('edfat_panduan', '1'); } catch (err) { /* tanpa storage */ }
+  if (MISI[S.i].k === 'T' && !$('misi').hidden) startPlay();
 }
 function renderMisiText() {
   const m = MISI[S.i];
@@ -652,22 +670,74 @@ function renderEvent() {
   ).join('');
   $('demoFoto').style.backgroundImage = `url(${URLS[ev().sampul] || `img/${ev().sampul}.jpg`})`;
   $('kredit').textContent = ev().kredit + '.';
+  renderBeranda();
+}
+
+/* ---------- beranda: jalur belajar + progres ---------- */
+function gambarHuruf(k) {
+  const d = ev()[k];
+  if (k === 'A') return d.tinggi.low.img;
+  if (k === 'T') return d.img(d.skor.indexOf(Math.max(...d.skor)) + 1);
+  return d.img;
+}
+const srcGambar = n => URLS[n] || `img/${n}.jpg`;
+function renderBeranda() {
+  const h = S.hasil, selesai = h.filter(Boolean).length;
+  const next = MISI.findIndex((m, i) => !h[i]);
+  $('jalur').innerHTML = MISI.map((m, i) => {
+    const r = h[i];
+    const status = r ? `<span class="st ok">Selesai · skor ${r.skor}</span>`
+      : i === next ? '<span class="st now">Langkah berikutnya</span>' : '<span class="st">Belum dicoba</span>';
+    return `<li class="lk ${r ? 'done' : ''} ${i === next ? 'next' : ''}">
+      <span class="lk-huruf">${m.k}</span>
+      <article class="lk-kartu">
+        <img src="${srcGambar(gambarHuruf(m.k))}" alt="" loading="lazy">
+        <div class="lk-isi">
+          <p class="eyebrow">Langkah ${i + 1} · ${m.nama}</p>
+          <h3>${m.judul}</h3>
+          <p class="lk-inti">${m.inti}</p>
+          <details>
+            <summary>Pelajari dulu</summary>
+            <p>${m.def}</p>
+            <p class="lk-tip"><b>Tips:</b> ${m.tip}</p>
+            <p class="lk-ex">${m.ex}</p>
+          </details>
+          <div class="lk-aksi">
+            <button class="btn ${i === next ? 'primary' : 'ghost'} kecil-btn" data-go="${i}">${r ? 'Ulangi' : 'Latih'} ${m.k}</button>
+            ${status}
+          </div>
+        </div>
+      </article>
+    </li>`;
+  }).join('');
+  const pct = selesai / MISI.length;
+  const rata = selesai ? Math.round(h.reduce((a, r) => a + (r ? r.skor : 0), 0) / selesai) : 0;
+  $('progres').innerHTML = `
+    <div class="cincin" style="--p:${pct}"><span><b>${selesai}</b>/5</span></div>
+    <div class="progres-teks">
+      <p class="eyebrow">Progres belajarmu</p>
+      <h3>${selesai === 0 ? 'Belum mulai' : selesai < 5 ? `${selesai} teknik selesai` : 'Kelima teknik selesai!'}</h3>
+      <p>${selesai ? `Rata-rata skor ${rata}.` : 'Mulai dari E. Butuh sekitar 10 menit untuk kelimanya.'}</p>
+    </div>
+    ${next >= 0
+      ? `<button class="btn primary lebar" data-go="${next}">${selesai ? 'Lanjut' : 'Mulai'}: ${MISI[next].k} · ${MISI[next].nama}</button>`
+      : '<button class="btn primary lebar" data-go="hasil">Lihat cerita fotomu</button>'}
+    <a class="link" href="#cara">Cara pakai simulator</a>`;
 }
 function pilihEvent(k) {
   if (k === S.ev) return;
   S.ev = k;
-  S.hasil = Array(MISI.length).fill(null);
-  if (!EVENTS[k].aktif) try { localStorage.setItem('edfat_ev', k); } catch (err) { /* tanpa storage */ }
+  S.hasil = HASIL[k] = HASIL[k] || Array(MISI.length).fill(null);
+  if (!EVENTS[k].aktif) {
+    evDasar = k;
+    try { localStorage.setItem('edfat_ev', k); } catch (err) { /* tanpa storage */ }
+  }
   preload();
   renderEvent();
   renderSteps('home');
 }
 
 function initUI() {
-  $('teoriCards').innerHTML = MISI.map(m =>
-    `<article class="card"><span class="huruf">${m.k}</span><h3>${m.nama}</h3><p>${m.def}</p><p class="ex">${m.ex}</p></article>`
-  ).join('');
-
   document.addEventListener('click', e => {
     const p = e.target.closest('[data-ev]');
     if (p) { pilihEvent(p.dataset.ev); return; }
@@ -713,8 +783,11 @@ function initUI() {
     berikut(S.i) >= 0 ? mulai(berikut(S.i)) : tampilHasil();
   });
   $('unduh').addEventListener('click', unduh);
+  $('bukaPanduan').addEventListener('click', bukaPanduan);
+  $('tutupPanduan').addEventListener('click', tutupPanduan);
 
   document.addEventListener('keydown', e => {
+    if (!$('panduan').hidden) { if (e.key === 'Escape') tutupPanduan(); return; }
     if ($('misi').hidden || e.target.matches('input, textarea')) return;
     if (!$('modal').hidden) { if (e.key === 'Escape') $('ulang').click(); return; }
     const step = .02;
@@ -933,7 +1006,7 @@ function tampilAnalisis(mode, info) {
 
 function latihFotoKamu(k) {
   S.ev = 'kamu';
-  S.hasil = Array(MISI.length).fill(null);
+  S.hasil = HASIL.kamu = Array(MISI.length).fill(null);
   preload();
   mulai(MISI.findIndex(m => m.k === k));
 }
