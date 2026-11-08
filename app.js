@@ -388,10 +388,13 @@ function mulai(i, les = false) {
   renderMisiText();
   renderHints();
   show('misi');
+  if (window.Kam) Kam.mulai();
   render();
   let sudah = false;
   try { sudah = localStorage.getItem('edfat_panduan') === '1'; } catch (err) { /* tanpa storage */ }
-  if (!sudah) bukaPanduan();
+  // pertama kali: pilih kamera dulu, baru panduan
+  if (window.Kam && !Kam.punya()) Kam.buka(() => { if (!sudah) bukaPanduan(); });
+  else if (!sudah) bukaPanduan();
 }
 function bukaPanduan() {
   stopPlay();
@@ -423,6 +426,7 @@ function renderHints() {
     A: () => [['Subjek', d.tinggi[S.tinggi].subj]],
     T: () => [['Area gerak', d.area]],
   }[k]();
+  S.hintList = list; // dipakai layar kamera (kamera.js)
   $('hints').innerHTML = list.map(([n, b]) =>
     `<span style="left:${b[0] * 100}%;top:${b[1] * 100}%;width:${(b[2] - b[0]) * 100}%;height:${(b[3] - b[1]) * 100}%"><em>${n}</em></span>`
   ).join('');
@@ -471,31 +475,45 @@ function render() {
 
   cancelAnimationFrame(rafId);
   rafId = requestAnimationFrame(drawLCD);
+  if (window.Kam) Kam.render();
 }
 function cekLi(it) {
   return `<li class="${it.ok === 1 ? 'ok' : it.ok > 0 ? 'half' : ''}">${it.label}</li>`;
 }
 
 /* ---------- kamera ---------- */
-function drawCrop(ctx, W, H) {
+function drawCrop(ctx, W, H, extra) {
   const im = foto(imgNow());
   ctx.fillStyle = '#0d1d1e';
   ctx.fillRect(0, 0, W, H);
   if (!im.complete || !im.naturalWidth) return;
-  const nw = im.naturalWidth, nh = im.naturalHeight;
-  ctx.save();
-  ctx.translate(W / 2, H / 2);
-  ctx.rotate(-S.rot * Math.PI / 180);
-  const s = W / (S.w * nw);
-  ctx.scale(s, s);
-  ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(im, -S.cx * nw, -S.cy * nh, nw, nh);
-  ctx.restore();
+  const nw = im.naturalWidth, nh = im.naturalHeight, s = W / (S.w * nw);
+  // efek kamera (kamera.js): blur gerak subjek / goyang tangan dari rana lambat
+  const fx = window.Kam ? Kam.efek() : null;
+  const gx = fx ? fx.gerak * W : 0, sx = fx ? fx.goyang * W : 0;
+  const n = Math.max(gx, sx) > .6 ? clamp(Math.ceil(Math.max(gx, sx) / 2), 3, 18) : 1;
+  const pasang = (ox = 0, oy = 0) => {
+    ctx.translate(W / 2 + ox, H / 2 + oy);
+    ctx.rotate(-S.rot * Math.PI / 180);
+    ctx.scale(s, s);
+  };
+  for (let i = 0; i < n; i++) {
+    const u = n > 1 ? i / (n - 1) - .5 : 0;
+    ctx.save();
+    pasang(u * gx + u * sx * .8, u * sx * .6);
+    ctx.globalAlpha = 1 / (i + 1); // rata-rata semua salinan
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(im, -S.cx * nw, -S.cy * nh, nw, nh);
+    ctx.restore();
+  }
+  if (fx) Kam.terapkan(ctx, W, H, fx);
+  if (extra) { ctx.save(); pasang(); extra(ctx, nw, nh, s); ctx.restore(); }
 }
 function drawLCD() {
   const c = $('lcd');
   if (!c.offsetParent) return;
-  drawCrop(c.getContext('2d'), c.width, c.height);
+  // mode layar kamera: panel menampilkan peta (seluruh foto + posisi bingkai)
+  if (window.Kam && Kam.layar()) Kam.drawPeta(c); else drawCrop(c.getContext('2d'), c.width, c.height);
   const m = MISI[S.i];
   $('lcdInfo').textContent = `${Math.round(S.f)} mm` + (S.rot ? `  ·  miring ${S.rot}°` : '') +
     (m.k === 'T' ? `  ·  frame ${S.frame}/${ev().T.n}` : '') + (m.k === 'A' ? `  ·  ${TINGGI[S.tinggi].label}` : '');
@@ -506,6 +524,7 @@ function jepret() {
   S.shotPlaying = S.playing;
   stopPlay();
   bunyi();
+  if (window.Kam) Kam.jepret();
   const fl = $('flash');
   fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go');
 
@@ -524,6 +543,9 @@ function jepret() {
   $('mSkor').textContent = skor;
   $('mCek').innerHTML = res.items.map(cekLi).join('');
   $('mSaran').textContent = res.saran;
+  const ek = window.Kam && Kam.saran();
+  $('mEksp').hidden = !ek;
+  if (ek) { $('mEksp').className = 'm-eksp ' + (ek.ok ? 'ok' : ''); $('mEksp').innerHTML = ek.html; }
   const nx = berikut(S.i);
   $('lanjut').textContent = S.les ? 'Lanjut' : nx >= 0 ? `Lanjut ke ${MISI[nx].k}` : 'Lihat cerita fotomu';
   $('modal').hidden = false;
@@ -695,8 +717,10 @@ function initStage() {
     if (!pts.has(e.pointerId)) return;
     const p = pts.get(e.pointerId), b = st.getBoundingClientRect();
     if (pts.size === 1) {
-      S.cx += (e.clientX - p.x) / b.width;
-      S.cy += (e.clientY - p.y) / b.height;
+      // peta: seret bingkai. layar kamera: seret isi layar (arah kebalikan, seperti menggeser kamera)
+      const k = window.Kam && Kam.layar() ? -S.w : 1;
+      S.cx += k * (e.clientX - p.x) / b.width;
+      S.cy += k * (e.clientY - p.y) / b.height;
       clampPos();
       if (!dragged) { dragged = true; $('dragTip').classList.add('off'); }
     }
